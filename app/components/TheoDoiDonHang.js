@@ -123,12 +123,14 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
     let totalSlLoi = 0, totalSlTra = 0;
     const orderKdSet = new Set();
     const maLoiCount = new Map();
+    const dayMaySet = new Set();
 
     for (const e of entries) {
       totalSlLoi += Number(e.sl_loi) || 0;
       totalSlTra += Number(e.sl_tra) || 0;
       if (e.order_kd) orderKdSet.add(e.order_kd);
       if (e.ma_loi) maLoiCount.set(e.ma_loi, (maLoiCount.get(e.ma_loi) || 0) + 1);
+      if (e.day_san_xuat_da_gia_cong_tong_hop_loi) dayMaySet.add(e.day_san_xuat_da_gia_cong_tong_hop_loi);
     }
 
     const maLoiArr = [...maLoiCount.entries()]
@@ -145,6 +147,7 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
       loi_ton: totalSlLoi - totalSlTra,
       order_kds: [...orderKdSet],
       ma_loi_counts: maLoiArr,
+      day_mays: [...dayMaySet],
     });
   }
 
@@ -316,7 +319,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
-      const headers = ["STT", "Tên chi tiết", "Số lần lỗi", "Mã lỗi (số lần)", "Các Order KD", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành"];
+      const headers = ["STT", "Tên chi tiết", "Số lần lỗi", "Mã lỗi (số lần)", "Các Order KD", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành"];
 
       for (const bp of BO_PHAN_LIST) {
         const bpRows = allFilteredNoBp.filter(r => r.noi_phat_sinh === bp.key);
@@ -329,6 +332,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
             r.so_lan_loi,
             (r.ma_loi_counts || []).map(m => `${m.code} (${m.count})`).join(", "),
             (r.order_kds || []).join(", "),
+            (r.day_mays || []).join(", "),
             st.tinh_trang || "",
             st.ngay_yeu_cau ? dayjs(st.ngay_yeu_cau).format("DD/MM/YYYY") : "",
             st.thoi_han ? dayjs(st.thoi_han).format("DD/MM/YYYY") : "",
@@ -392,6 +396,21 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
           <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
             {arr.map(o => (
               <span key={o} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#f1f5f9", color: "#334155", whiteSpace: "nowrap", border: "1px solid #e2e8f0" }}>{o}</span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      field: "day_mays", headerName: "Dãy máy gia công", minWidth: 150, width: 150, align: "center", headerAlign: "center",
+      sortable: false,
+      renderCell: (p) => {
+        const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        return (
+          <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", justifyContent: "center", overflow: "hidden" }}>
+            {arr.map(v => (
+              <span key={v} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fef3c7", color: "#92400e", whiteSpace: "nowrap" }}>{v}</span>
             ))}
           </div>
         );

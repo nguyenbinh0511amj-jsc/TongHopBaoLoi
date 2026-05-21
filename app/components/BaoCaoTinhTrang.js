@@ -99,6 +99,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         ngay_hoan_thanh: data.ngay_hoan_thanh || null,
         trang_thai_thoi_han: trangThaiThoiHan,
         so_lan_loi: matchedRow?.so_lan_loi || null,
+        day_mays: matchedRow?.day_mays || [],
         _searchText: `${tenChiTiet} ${noiPhatSinh}`.toLowerCase(),
       });
     }
@@ -162,11 +163,12 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
-      const headers = ["STT", "Tên chi tiết", "Vị trí", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành", "Trạng thái thời hạn"];
+      const headers = ["STT", "Tên chi tiết", "Vị trí", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành", "Trạng thái thời hạn"];
       const data = filteredRows.map((r, i) => [
         i + 1,
         r.ten_chi_tiet,
         r.noi_phat_sinh,
+        (r.day_mays || []).join(", "),
         r.tinh_trang,
         r.ngay_yeu_cau ? dayjs(r.ngay_yeu_cau).format("DD/MM/YYYY") : "",
         r.thoi_han ? dayjs(r.thoi_han).format("DD/MM/YYYY") : "",
@@ -191,6 +193,21 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
           {p.value || "—"}
         </span>
       ),
+    },
+    {
+      field: "day_mays", headerName: "Dãy máy gia công", minWidth: 150, width: 150, align: "center", headerAlign: "center",
+      sortable: false,
+      renderCell: (p) => {
+        const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#d1d5db" }}>—</span>;
+        return (
+          <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", justifyContent: "center", overflow: "hidden" }}>
+            {arr.map(v => (
+              <span key={v} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fef3c7", color: "#92400e", whiteSpace: "nowrap" }}>{v}</span>
+            ))}
+          </div>
+        );
+      },
     },
     {
       field: "noi_phat_sinh", headerName: "Vị trí", minWidth: 120, width: 120, align: "center", headerAlign: "center",

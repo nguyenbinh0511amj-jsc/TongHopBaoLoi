@@ -144,6 +144,7 @@ function processData(thongKeLoi, soGiaoNhan) {
     const maLoiSet = new Set();
     const noiXuLySet = new Set();
     const noiPhatSinhSet = new Set();
+    const dayMaySet = new Set();
     const ngayNhans = [];
     const seenOrder = new Set();
 
@@ -164,6 +165,7 @@ function processData(thongKeLoi, soGiaoNhan) {
       if (e.ma_loi) maLoiSet.add(e.ma_loi);
       if (e.noi_xu_ly_loi) noiXuLySet.add(e.noi_xu_ly_loi);
       if (e.noi_phat_sinh_loi) noiPhatSinhSet.add(e.noi_phat_sinh_loi);
+      if (e.day_san_xuat_da_gia_cong_tong_hop_loi) dayMaySet.add(e.day_san_xuat_da_gia_cong_tong_hop_loi);
     }
 
     // Sort entries by ngay_bao_loi descending
@@ -187,6 +189,7 @@ function processData(thongKeLoi, soGiaoNhan) {
       ma_lois: maLois,
       noi_xu_lys: [...noiXuLySet],
       noi_phat_sinhs: [...noiPhatSinhSet],
+      day_mays: [...dayMaySet],
       ngay_nhans: ngayNhans,
       _allNgayNhanParsed: ngayNhans.map(n => parseDateMMDD(n.ngay_nhan)).filter(d => d && d.isValid()),
       entries,
@@ -460,7 +463,7 @@ export default function TongHopThongKeLoiPage() {
       const wb = XLSX.utils.book_new();
 
       // ── Sheet 1: Tổng hợp (grouped summary) ──
-      const summaryHeaders = ["STT", "Tên chi tiết", "Số lần lỗi", "Tổng SL lỗi", "SL trả", "Lỗi tồn", "Các Order KD", "Các mã lỗi", "Nơi xử lý", "Ngày nhận hàng"];
+      const summaryHeaders = ["STT", "Tên chi tiết", "Số lần lỗi", "Tổng SL lỗi", "SL trả", "Lỗi tồn", "Các Order KD", "Các mã lỗi", "Nơi xử lý", "Dãy máy gia công", "Ngày nhận hàng"];
       const summaryData = rows.map((r, i) => [
         i + 1,
         r.ten_chi_tiet,
@@ -471,6 +474,7 @@ export default function TongHopThongKeLoiPage() {
         r.order_kds.join(", "),
         r.ma_lois.join(", "),
         r.noi_xu_lys.join(", "),
+        (r.day_mays || []).join(", "),
         r.ngay_nhans.map(n => `${n.order_kd}: ${toVNDate(n.ngay_nhan)}`).join("; "),
       ]);
       const ws1 = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryData]);
@@ -481,7 +485,7 @@ export default function TongHopThongKeLoiPage() {
       XLSX.utils.book_append_sheet(wb, ws1, "Tổng hợp");
 
       // ── Sheet 2: Chi tiết (all individual entries) ──
-      const detailHeaders = ["STT", "Tên chi tiết", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Ngày nhận hàng", "Trạng thái"];
+      const detailHeaders = ["STT", "Tên chi tiết", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Dãy máy gia công", "Ngày nhận hàng", "Trạng thái"];
       const detailData = [];
       let stt = 0;
       rows.forEach(r => {
@@ -499,6 +503,7 @@ export default function TongHopThongKeLoiPage() {
             toVNDate(e.ngay_tra_loi) || "",
             e.noi_xu_ly_loi || "",
             e.noi_phat_sinh_loi || "",
+            e.day_san_xuat_da_gia_cong_tong_hop_loi || "",
             toVNDate(e._ngay_nhan) || "",
             e.trang_thai || "",
           ]);
@@ -653,6 +658,25 @@ export default function TongHopThongKeLoiPage() {
         return (
           <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", justifyContent: "center", overflow: "hidden" }}>
             {arr.map(v => <NoiXuLyBadge key={v} value={v} />)}
+          </div>
+        );
+      },
+    },
+    {
+      field: "day_mays", headerName: "Dãy máy gia công", minWidth: 150, width: 150, align: "center", headerAlign: "center",
+      sortable: false,
+      renderCell: (p) => {
+        if (p.row._type === "child") {
+          const val = p.row.day_san_xuat_da_gia_cong_tong_hop_loi;
+          return <span style={{ fontSize: 12, color: val ? "#374151" : "#d1d5db" }}>{val || "—"}</span>;
+        }
+        const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        return (
+          <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", justifyContent: "center", overflow: "hidden" }}>
+            {arr.map(v => (
+              <span key={v} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fef3c7", color: "#92400e", whiteSpace: "nowrap" }}>{v}</span>
+            ))}
           </div>
         );
       },
