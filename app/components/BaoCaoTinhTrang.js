@@ -19,15 +19,6 @@ const BO_PHAN_CONFIG = {
   "Phôi": { label: "Phôi", icon: "📦", color: "#9d174d", bg: "#fdf2f8", gradient: "linear-gradient(135deg, #f472b6, #ec4899)" },
 };
 
-const LS_KEY = "theodoi_status_data";
-
-function getStatusData() {
-  try {
-    const saved = localStorage.getItem(LS_KEY);
-    return saved ? JSON.parse(saved) : {};
-  } catch { return {}; }
-}
-
 /* ════════════════════════════════════════ */
 export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const [statusData, setStatusData] = useState({});
@@ -36,21 +27,18 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const [filterStatus, setFilterStatus] = useState(null);
   const [sortModel, setSortModel] = useState([]);
 
-  // Sync from localStorage
+  // Fetch status from server API
   useEffect(() => {
-    setStatusData(getStatusData());
-
-    const handleStorage = (e) => {
-      if (e.key === LS_KEY) setStatusData(getStatusData());
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch("/api/status");
+        const json = await res.json();
+        if (json.ok && json.data) setStatusData(json.data);
+      } catch { /* ignore */ }
     };
-    window.addEventListener("storage", handleStorage);
-
-    // Poll for changes from same tab (localStorage events only fire cross-tab)
-    const interval = setInterval(() => setStatusData(getStatusData()), 2000);
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-      clearInterval(interval);
-    };
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   /* ── Build report rows from statusData ── */

@@ -246,23 +246,41 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
 
   const deferredSearch = useDeferredValue(search);
 
-  /* ── Status data (localStorage) ── */
-  const LS_KEY = "theodoi_status_data";
+  /* ── Status data (shared via API) ── */
   const [statusData, setStatusData] = useState({});
+  const statusRef = useRef(statusData);
+  statusRef.current = statusData;
 
-  useEffect(() => {
+  // Fetch status from server
+  const fetchStatus = useCallback(async () => {
     try {
-      const saved = localStorage.getItem(LS_KEY);
-      if (saved) setStatusData(JSON.parse(saved));
+      const res = await fetch("/api/status");
+      const json = await res.json();
+      if (json.ok && json.data) {
+        setStatusData(json.data);
+      }
     } catch { /* ignore */ }
   }, []);
 
+  // Load on mount + poll every 5s for other users' changes
+  useEffect(() => {
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
+  }, [fetchStatus]);
+
   const updateStatus = useCallback((rowKey, field, value) => {
+    // Optimistic update
     setStatusData(prev => {
       const next = { ...prev, [rowKey]: { ...(prev[rowKey] || {}), [field]: value } };
-      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
+    // Persist to server
+    fetch("/api/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: rowKey, field, value }),
+    }).catch(() => { /* ignore */ });
   }, []);
 
   /* ── All data (no bp/search filter, for unique options) ── */
