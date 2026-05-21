@@ -27,41 +27,145 @@
 @media screen and (max-width: 768px) {
   /* ── Page height — dùng dvh cho mobile browser ── */
   .page-container {
-    height: calc(100dvh - 50px) !important;
-    gap: 4px !important;
+    height: calc(100dvh - 44px) !important;
+    gap: 0 !important;
   }
 
-  /* ── Stat Cards: 4 cột → 2 cột ── */
-  .stat-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 4px !important;
-  }
-  .stat-grid > div {
-    padding: 6px 8px !important;
-  }
-
-  /* ── Toolbar: cuộn ngang, 1 dòng ── */
-  .toolbar {
-    overflow-x: auto;
-    flex-wrap: nowrap !important;
-    padding: 6px 8px !important;
-    gap: 6px !important;
+  /* ── Tab Bar: cuộn ngang, text nhỏ hơn ── */
+  .tab-bar {
+    padding: 0 8px !important;
+    overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
-  .toolbar::-webkit-scrollbar {
+  .tab-bar::-webkit-scrollbar {
     display: none;
   }
-  .toolbar .ant-input-affix-wrapper,
-  .toolbar .ant-select,
-  .toolbar .ant-input-number,
-  .toolbar .ant-picker,
-  .toolbar .ant-btn,
-  .toolbar .ant-space {
+  .tab-bar .tab-list {
+    gap: 0 !important;
+  }
+  .tab-bar .tab-btn {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
     flex-shrink: 0;
   }
-  .toolbar .ant-input-affix-wrapper {
-    width: 140px !important;
+
+  /* ── Stats row (Tab 1): wrap và nhỏ hơn ── */
+  .stats-row {
+    padding: 4px 8px !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+  }
+  .stats-row > div {
+    gap: 4px !important;
+  }
+  .stats-row span {
+    font-size: 11px !important;
+  }
+
+  /* ── Filter toolbar: cuộn ngang ── */
+  .filter-toolbar {
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filter-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-toolbar .ant-input-affix-wrapper {
+    width: 160px !important;
+    min-width: 160px !important;
+    flex-shrink: 0 !important;
+  }
+  .filter-toolbar .ant-select {
+    min-width: 120px !important;
+    flex-shrink: 0 !important;
+  }
+  .filter-toolbar .ant-picker {
+    width: 105px !important;
+    min-width: 105px !important;
+    flex-shrink: 0 !important;
+  }
+  .filter-toolbar .ant-input-number {
+    width: 50px !important;
+    min-width: 50px !important;
+    flex-shrink: 0 !important;
+  }
+  .filter-toolbar .ant-btn {
+    flex-shrink: 0 !important;
+  }
+  /* Separators */
+  .filter-toolbar > div[style*="width: 1px"],
+  .filter-toolbar > div[style*="width:1px"] {
+    display: none !important;
+  }
+  /* Date group containers */
+  .filter-toolbar > div[style*="gap: 4"] {
+    flex-shrink: 0 !important;
+    white-space: nowrap;
+  }
+  .filter-toolbar > div[style*="gap:4"] {
+    flex-shrink: 0 !important;
+    white-space: nowrap;
+  }
+  /* Filler div */
+  .filter-toolbar > div[style*="flex: 1"],
+  .filter-toolbar > div[style*="flex:1"] {
+    display: none !important;
+  }
+  /* Row count text */
+  .filter-toolbar > span {
+    display: none !important;
+  }
+
+  /* ── Stat Cards grid: 4 → 2 cột ── */
+  .stat-grid,
+  .bp-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+    padding: 8px !important;
+  }
+  .stat-grid > div,
+  .bp-cards-grid > div {
+    padding: 8px 10px !important;
+  }
+
+  /* ── Summary Cards (Báo cáo tab): 4 → 2 cột ── */
+  .summary-cards {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+  }
+  .summary-cards > div {
+    min-width: calc(50% - 4px) !important;
+    flex: 0 0 calc(50% - 4px) !important;
+    padding: 10px 12px !important;
+  }
+
+  /* ── Charts Section (Báo cáo tab): stack vertically ── */
+  .charts-section {
+    flex-direction: column !important;
+    padding: 0 8px 8px !important;
+    gap: 8px !important;
+  }
+  .charts-section > div {
+    min-width: unset !important;
+    flex: unset !important;
+    padding: 12px !important;
+  }
+
+  /* ── Table header row (Theo dõi tab) ── */
+  .table-header {
+    padding: 4px 8px !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+  .table-header span {
+    font-size: 11px !important;
   }
 
   /* ── DataGrid — font nhỏ hơn, compact hơn ── */
@@ -84,6 +188,21 @@
     display: none !important;
   }
 
+  /* ── MuiDataGrid (without .datagrid-wrapper — for other tabs) ── */
+  .MuiDataGrid-root {
+    font-size: 12px !important;
+  }
+  .MuiDataGrid-columnHeaderTitle {
+    font-size: 11px !important;
+  }
+  .MuiDataGrid-footerContainer {
+    min-height: 32px !important;
+  }
+  .MuiTablePagination-displayedRows,
+  .MuiTablePagination-selectLabel {
+    font-size: 11px !important;
+  }
+
   /* ── Modal responsive ── */
   .ant-modal {
     max-width: calc(100vw - 24px) !important;
@@ -93,138 +212,87 @@
     max-height: calc(100dvh - 200px);
     overflow-y: auto;
   }
-  .modal-form-grid {
-    grid-template-columns: 1fr !important;
-  }
 
-  /* ── Custom table (tong-hop-loi) ── */
-  .custom-table-scroll {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  /* ── Header ── */
+  header .flex.items-center.gap-3 > span.hidden {
+    display: none !important;
   }
-  .custom-table-scroll table {
-    font-size: 10px !important;
+  header .flex.items-center.gap-2 > div.w-7 {
+    width: 24px !important;
+    height: 24px !important;
   }
-  .custom-table-scroll th,
-  .custom-table-scroll td {
-    padding: 2px 4px !important;
-    white-space: nowrap;
+  header h-10 {
+    height: 36px !important;
   }
-
-  /* ── Filter grid responsive (tong-hop-loi) ── */
-  .filter-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
-    gap: 4px !important;
+  
+  /* ── Ant Design Select dropdown in cells ── */
+  .MuiDataGrid-cell .ant-select {
+    font-size: 11px !important;
   }
-
-  /* ── Stats 5 cột → 3+2 ── */
-  .stat-grid-5 {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 4px !important;
-  }
-  .stat-grid-5 > div {
-    padding: 4px 6px !important;
-  }
-
-  /* ── Toolbar buttons: ẩn text, chỉ giữ icon ── */
-  .toolbar .ant-btn > span:not(.anticon):not(.ant-btn-icon) {
-    display: none;
-  }
-  .toolbar .ant-btn {
-    padding: 0 6px !important;
-  }
-
-  /* ── Header area responsive ── */
-  .page-header {
-    flex-direction: column !important;
-    gap: 4px !important;
-    align-items: flex-start !important;
-  }
-  .page-header-actions {
-    width: 100%;
-    justify-content: flex-end !important;
-  }
-
-  /* ── Tổng hợp lỗi page — custom table responsive ── */
-  .thl-page header > div {
-    padding: 12px !important;
-  }
-  .thl-page h1 {
-    font-size: 16px !important;
-  }
-  .thl-page .btn {
-    padding: 6px 10px !important;
-    font-size: 12px !important;
-    gap: 4px !important;
-  }
-  .page-header-actions .btn > :not(.fas):not(.fa):not(i) {
-    display: none;
-  }
-  .thl-page .filter-group label {
-    font-size: 10px !important;
-  }
-  .thl-page .input-field,
-  .thl-page .select-field {
-    padding: 8px 10px !important;
-    font-size: 12px !important;
-  }
-  .thl-page .stats-card {
-    padding: 10px !important;
-  }
-  .thl-page .stats-card div:last-child {
-    font-size: 18px !important;
-  }
-  .thl-page .table-container {
-    max-height: calc(100dvh - 200px) !important;
-  }
-  .thl-page .pagination button {
-    padding: 6px 10px !important;
-    font-size: 12px !important;
+  .MuiDataGrid-cell .ant-picker {
+    font-size: 11px !important;
   }
 }
 
 /* ═══════════ PHONE (≤ 480px) ═══════════ */
 @media screen and (max-width: 480px) {
   .page-container {
-    height: calc(100dvh - 46px) !important;
+    height: calc(100dvh - 40px) !important;
   }
 
-  /* Stats: compact hơn */
-  .stat-grid {
-    gap: 3px !important;
-  }
-  .stat-grid > div {
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
-  }
-  .stat-grid > div > div:first-child {
-    width: 28px !important;
-    height: 28px !important;
-    border-radius: 6px !important;
-  }
-  .stat-grid > div > div:first-child > span,
-  .stat-grid > div span {
+  /* ── Tab bar: even smaller ── */
+  .tab-bar .tab-btn {
+    padding: 6px 10px !important;
     font-size: 11px !important;
   }
 
-  /* Toolbar: nhỏ hơn nữa */
-  .toolbar {
-    padding: 4px 6px !important;
-    gap: 4px !important;
+  /* ── Filter toolbar: narrower inputs ── */
+  .filter-toolbar .ant-input-affix-wrapper {
+    width: 130px !important;
+    min-width: 130px !important;
   }
-  .toolbar .ant-input-affix-wrapper {
-    width: 120px !important;
+  .filter-toolbar .ant-select {
+    min-width: 100px !important;
   }
-  .toolbar .ant-select {
-    min-width: 80px !important;
+  .filter-toolbar .ant-picker {
+    width: 95px !important;
+    min-width: 95px !important;
   }
 
-  /* DataGrid: font nhỏ hơn */
-  .datagrid-wrapper .MuiDataGrid-root {
+  /* Stats row: hide labels */
+  .stats-row {
+    padding: 3px 6px !important;
+    gap: 6px !important;
+  }
+
+  /* ── Summary cards: 1 column on very small ── */
+  .summary-cards > div {
+    min-width: 100% !important;
+    flex: 0 0 100% !important;
+  }
+
+  /* ── DataGrid: even smaller ── */
+  .MuiDataGrid-root {
     font-size: 11px !important;
   }
-  .datagrid-wrapper .MuiDataGrid-columnHeaderTitle {
+  .MuiDataGrid-columnHeaderTitle {
     font-size: 10px !important;
+  }
+
+  /* ── BP cards grid: 2 col still but smaller ── */
+  .bp-cards-grid {
+    gap: 4px !important;
+    padding: 6px !important;
+  }
+  .bp-cards-grid > div {
+    padding: 6px 8px !important;
+    border-radius: 8px !important;
+  }
+
+  /* ── Charts stacked ── */
+  .charts-section > div {
+    padding: 10px !important;
+    border-radius: 8px !important;
   }
 
   /* Modal: full width */
@@ -233,32 +301,35 @@
     margin: 8px auto !important;
   }
 
-  /* Stats 5 cột → 2 cột trên phone nhỏ */
-  .stat-grid-5 {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-
-  /* Tổng hợp lỗi — phone */
-  .thl-page h1 {
-    font-size: 14px !important;
-  }
-  .thl-page .stats-card div:last-child {
-    font-size: 16px !important;
+  /* Table header */
+  .table-header {
+    padding: 3px 6px !important;
   }
 }
 
 /* ═══════════ TOUCH OPTIMIZATION ═══════════ */
 @media (hover: none) and (pointer: coarse) {
-  .datagrid-wrapper .MuiDataGrid-cell {
+  /* Bigger touch targets */
+  .MuiDataGrid-cell {
     padding-top: 4px !important;
     padding-bottom: 4px !important;
+    min-height: 36px !important;
   }
-  .datagrid-wrapper .MuiDataGrid-columnHeader {
+  .MuiDataGrid-columnHeader {
     padding-top: 6px !important;
     padding-bottom: 6px !important;
   }
-  .datagrid-wrapper .MuiDataGrid-cellCheckbox,
-  .datagrid-wrapper .MuiDataGrid-columnHeaderCheckbox {
-    display: none !important;
+
+  /* Tab buttons: bigger tap area */
+  .tab-btn {
+    min-height: 40px !important;
+  }
+
+  /* Hide scrollbar on touch */
+  .filter-toolbar {
+    scrollbar-width: none;
+  }
+  .filter-toolbar::-webkit-scrollbar {
+    display: none;
   }
 }

@@ -521,7 +521,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "#f1f5f9" }}>
 
       {/* ── Filter toolbar ── */}
-      <div style={{
+      <div className="filter-toolbar" style={{
         display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
         padding: "6px 16px", background: "#fff", borderBottom: "1px solid #f0f0f0",
       }}>
@@ -567,7 +567,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
       </div>
 
       {/* ── Summary cards ── */}
-      <div style={{
+      <div className="bp-cards-grid" style={{
         display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12,
         padding: "12px 16px",
       }}>
@@ -622,7 +622,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
       </div>
 
       {/* ── Table header ── */}
-      <div style={{
+      <div className="table-header" style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "6px 16px", background: "#fff", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0",
       }}>

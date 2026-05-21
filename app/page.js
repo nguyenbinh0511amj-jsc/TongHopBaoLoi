@@ -713,15 +713,16 @@ export default function TongHopThongKeLoiPage() {
   return (
     <div className="page-container" style={{ maxWidth: "100%", height: "calc(100vh - 48px)", display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Tab bar */}
-      <div style={{
+      <div className="tab-bar" style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 16px", background: "#fff", borderBottom: "1px solid #e5e7eb",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        <div className="tab-list" style={{ display: "flex", alignItems: "center", gap: 0 }}>
           {mainTabs.map(tab => {
             const isActive = activeTab === tab.key;
             return (
               <button
+                className="tab-btn"
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 style={{
@@ -753,7 +754,7 @@ export default function TongHopThongKeLoiPage() {
       {activeTab === "thongke" ? (
         <>
           {/* Stats + Export for tab 1 */}
-          <div style={{
+          <div className="stats-row" style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "6px 16px", background: "#fff", borderBottom: "1px solid #f0f0f0",
           }}>
@@ -767,7 +768,7 @@ export default function TongHopThongKeLoiPage() {
           </div>
 
           {/* Filter toolbar for tab 1 */}
-          <div style={{
+          <div className="filter-toolbar" style={{
             padding: "6px 16px", background: "#fff", borderBottom: "1px solid #f0f0f0",
             display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
           }}>
