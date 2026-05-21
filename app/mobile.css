@@ -1,0 +1,264 @@
+/* ═══════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — Tối ưu giao diện cho tablet & phone
+   Import vào globals.css: @import "./mobile.css";
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Page Container ── */
+.page-container {
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Main Card ── */
+.main-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  border: 1px solid #f0f0f0;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ═══════════ TABLET (≤ 768px) ═══════════ */
+@media screen and (max-width: 768px) {
+  /* ── Page height — dùng dvh cho mobile browser ── */
+  .page-container {
+    height: calc(100dvh - 50px) !important;
+    gap: 4px !important;
+  }
+
+  /* ── Stat Cards: 4 cột → 2 cột ── */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 4px !important;
+  }
+  .stat-grid > div {
+    padding: 6px 8px !important;
+  }
+
+  /* ── Toolbar: cuộn ngang, 1 dòng ── */
+  .toolbar {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  .toolbar .ant-input-affix-wrapper,
+  .toolbar .ant-select,
+  .toolbar .ant-input-number,
+  .toolbar .ant-picker,
+  .toolbar .ant-btn,
+  .toolbar .ant-space {
+    flex-shrink: 0;
+  }
+  .toolbar .ant-input-affix-wrapper {
+    width: 140px !important;
+  }
+
+  /* ── DataGrid — font nhỏ hơn, compact hơn ── */
+  .datagrid-wrapper .MuiDataGrid-root {
+    font-size: 12px !important;
+  }
+  .datagrid-wrapper .MuiDataGrid-columnHeaderTitle {
+    font-size: 11px !important;
+  }
+  .datagrid-wrapper .MuiDataGrid-footerContainer {
+    min-height: 32px !important;
+  }
+  .datagrid-wrapper .MuiTablePagination-displayedRows,
+  .datagrid-wrapper .MuiTablePagination-selectLabel {
+    font-size: 11px !important;
+  }
+  .datagrid-wrapper .MuiTablePagination-select,
+  .datagrid-wrapper .MuiTablePagination-selectLabel,
+  .datagrid-wrapper .MuiInputBase-root.MuiTablePagination-input {
+    display: none !important;
+  }
+
+  /* ── Modal responsive ── */
+  .ant-modal {
+    max-width: calc(100vw - 24px) !important;
+    margin: 12px auto !important;
+  }
+  .ant-modal .ant-modal-body {
+    max-height: calc(100dvh - 200px);
+    overflow-y: auto;
+  }
+  .modal-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Custom table (tong-hop-loi) ── */
+  .custom-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .custom-table-scroll table {
+    font-size: 10px !important;
+  }
+  .custom-table-scroll th,
+  .custom-table-scroll td {
+    padding: 2px 4px !important;
+    white-space: nowrap;
+  }
+
+  /* ── Filter grid responsive (tong-hop-loi) ── */
+  .filter-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 4px !important;
+  }
+
+  /* ── Stats 5 cột → 3+2 ── */
+  .stat-grid-5 {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 4px !important;
+  }
+  .stat-grid-5 > div {
+    padding: 4px 6px !important;
+  }
+
+  /* ── Toolbar buttons: ẩn text, chỉ giữ icon ── */
+  .toolbar .ant-btn > span:not(.anticon):not(.ant-btn-icon) {
+    display: none;
+  }
+  .toolbar .ant-btn {
+    padding: 0 6px !important;
+  }
+
+  /* ── Header area responsive ── */
+  .page-header {
+    flex-direction: column !important;
+    gap: 4px !important;
+    align-items: flex-start !important;
+  }
+  .page-header-actions {
+    width: 100%;
+    justify-content: flex-end !important;
+  }
+
+  /* ── Tổng hợp lỗi page — custom table responsive ── */
+  .thl-page header > div {
+    padding: 12px !important;
+  }
+  .thl-page h1 {
+    font-size: 16px !important;
+  }
+  .thl-page .btn {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    gap: 4px !important;
+  }
+  .page-header-actions .btn > :not(.fas):not(.fa):not(i) {
+    display: none;
+  }
+  .thl-page .filter-group label {
+    font-size: 10px !important;
+  }
+  .thl-page .input-field,
+  .thl-page .select-field {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+  .thl-page .stats-card {
+    padding: 10px !important;
+  }
+  .thl-page .stats-card div:last-child {
+    font-size: 18px !important;
+  }
+  .thl-page .table-container {
+    max-height: calc(100dvh - 200px) !important;
+  }
+  .thl-page .pagination button {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ═══════════ PHONE (≤ 480px) ═══════════ */
+@media screen and (max-width: 480px) {
+  .page-container {
+    height: calc(100dvh - 46px) !important;
+  }
+
+  /* Stats: compact hơn */
+  .stat-grid {
+    gap: 3px !important;
+  }
+  .stat-grid > div {
+    padding: 4px 6px !important;
+    border-radius: 6px !important;
+  }
+  .stat-grid > div > div:first-child {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 6px !important;
+  }
+  .stat-grid > div > div:first-child > span,
+  .stat-grid > div span {
+    font-size: 11px !important;
+  }
+
+  /* Toolbar: nhỏ hơn nữa */
+  .toolbar {
+    padding: 4px 6px !important;
+    gap: 4px !important;
+  }
+  .toolbar .ant-input-affix-wrapper {
+    width: 120px !important;
+  }
+  .toolbar .ant-select {
+    min-width: 80px !important;
+  }
+
+  /* DataGrid: font nhỏ hơn */
+  .datagrid-wrapper .MuiDataGrid-root {
+    font-size: 11px !important;
+  }
+  .datagrid-wrapper .MuiDataGrid-columnHeaderTitle {
+    font-size: 10px !important;
+  }
+
+  /* Modal: full width */
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px auto !important;
+  }
+
+  /* Stats 5 cột → 2 cột trên phone nhỏ */
+  .stat-grid-5 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Tổng hợp lỗi — phone */
+  .thl-page h1 {
+    font-size: 14px !important;
+  }
+  .thl-page .stats-card div:last-child {
+    font-size: 16px !important;
+  }
+}
+
+/* ═══════════ TOUCH OPTIMIZATION ═══════════ */
+@media (hover: none) and (pointer: coarse) {
+  .datagrid-wrapper .MuiDataGrid-cell {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+  .datagrid-wrapper .MuiDataGrid-columnHeader {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+  .datagrid-wrapper .MuiDataGrid-cellCheckbox,
+  .datagrid-wrapper .MuiDataGrid-columnHeaderCheckbox {
+    display: none !important;
+  }
+}

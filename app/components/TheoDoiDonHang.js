@@ -1,0 +1,543 @@
+"use client";
+import { useState, useMemo, useEffect, forwardRef, useImperativeHandle, useCallback, useDeferredValue } from "react";
+import { DataGrid } from "@mui/x-data-grid";
+import { viVN } from "@mui/x-data-grid/locales";
+import { Input, Select, InputNumber, Button, DatePicker } from "antd";
+import { SearchOutlined, DownloadOutlined, ClearOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
+
+/* ── Badge: mã lỗi + số lần ── */
+function MaLoiCountBadge({ code, count }) {
+  const colors = {
+    F1: "#dc2626", F2: "#ea580c", F3: "#d97706", F4: "#ca8a04",
+    F5: "#65a30d", F6: "#0d9488", F7: "#2563eb", F8: "#7c3aed",
+    F9: "#c026d3", F10: "#e11d48",
+  };
+  const prefix = code.match(/^F\d+/)?.[0] || "";
+  const c = colors[prefix] || "#4b5563";
+  return (
+    <span style={{
+      padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
+      background: `${c}12`, color: c, whiteSpace: "nowrap", border: `1px solid ${c}25`,
+    }}>
+      {code} <b>({count})</b>
+    </span>
+  );
+}
+
+function NoiXuLyBadge({ value }) {
+  if (!value) return null;
+  const colorMap = {
+    PSX: { bg: "#fef3c7", color: "#92400e", border: "#fbbf2440" },
+    PKT: { bg: "#dbeafe", color: "#1e40af", border: "#3b82f640" },
+    PKY: { bg: "#ede9fe", color: "#5b21b6", border: "#8b5cf640" },
+    "Phôi": { bg: "#fce7f3", color: "#9d174d", border: "#ec489940" },
+  };
+  const c = colorMap[value] || { bg: "#f3f4f6", color: "#4b5563", border: "#9ca3af40" };
+  return <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{value}</span>;
+}
+
+/* ── Bộ phận config ── */
+const BO_PHAN_LIST = [
+  { key: "PSX", label: "PSX", icon: "🏭", gradient: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)", color: "#92400e", bgLight: "#fffbeb" },
+  { key: "PKT", label: "PKT", icon: "🔧", gradient: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)", color: "#1e40af", bgLight: "#eff6ff" },
+  { key: "PKY", label: "PKY", icon: "⚙️", gradient: "linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)", color: "#5b21b6", bgLight: "#f5f3ff" },
+  { key: "Phôi", label: "Phôi", icon: "📦", gradient: "linear-gradient(135deg, #f472b6 0%, #ec4899 100%)", color: "#9d174d", bgLight: "#fdf2f8" },
+];
+
+/* ── Parse MM/DD/YYYY → dayjs ── */
+function parseEntryDate(val) {
+  if (!val) return null;
+  const m = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, month, day, year] = m;
+  return dayjs(`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`);
+}
+
+/* ── Process: filter entries → group → count ── */
+function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, search }) {
+  // 1. Flatten all entries
+  let allEntries = [];
+  rows.forEach(group => {
+    group.entries.forEach(entry => {
+      allEntries.push({ ...entry, _ten_chi_tiet: group.ten_chi_tiet });
+    });
+  });
+
+  // 2. Filter entries BEFORE grouping
+  if (boPhan && boPhan !== "all") {
+    allEntries = allEntries.filter(e => e.noi_phat_sinh_loi === boPhan);
+  }
+  if (filterMaLoi) {
+    allEntries = allEntries.filter(e => e.ma_loi === filterMaLoi);
+  }
+  if (ngayNhanFrom || ngayNhanTo) {
+    allEntries = allEntries.filter(e => {
+      const d = parseEntryDate(e._ngay_nhan);
+      if (!d || !d.isValid()) return false;
+      if (ngayNhanFrom && d.isBefore(ngayNhanFrom, 'day')) return false;
+      if (ngayNhanTo && d.isAfter(ngayNhanTo, 'day')) return false;
+      return true;
+    });
+  }
+  if (search) {
+    const s = search.toLowerCase();
+    allEntries = allEntries.filter(e =>
+      (e._ten_chi_tiet || "").toLowerCase().includes(s) ||
+      (e.order_kd || "").toLowerCase().includes(s) ||
+      (e.ma_loi || "").toLowerCase().includes(s)
+    );
+  }
+
+  // 3. Group by ten_chi_tiet + noi_phat_sinh_loi
+  const groups = new Map();
+  for (const entry of allEntries) {
+    const tenCT = entry._ten_chi_tiet || "";
+    const noiPS = entry.noi_phat_sinh_loi || "";
+    if (!tenCT) continue;
+    const key = `${tenCT}|||${noiPS}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(entry);
+  }
+
+  // 4. Build result, only ≥ minLan
+  const result = [];
+  let idx = 0;
+  for (const [key, entries] of groups) {
+    if (entries.length < minLan) continue;
+
+    const [tenChiTiet, noiPhatSinh] = key.split("|||");
+    let totalSlLoi = 0, totalSlTra = 0;
+    const orderKdSet = new Set();
+    const maLoiCount = new Map();
+
+    for (const e of entries) {
+      totalSlLoi += Number(e.sl_loi) || 0;
+      totalSlTra += Number(e.sl_tra) || 0;
+      if (e.order_kd) orderKdSet.add(e.order_kd);
+      if (e.ma_loi) maLoiCount.set(e.ma_loi, (maLoiCount.get(e.ma_loi) || 0) + 1);
+    }
+
+    const maLoiArr = [...maLoiCount.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([code, count]) => ({ code, count }));
+
+    result.push({
+      id: idx++,
+      ten_chi_tiet: tenChiTiet,
+      noi_phat_sinh: noiPhatSinh,
+      so_lan_loi: entries.length,
+      tong_sl_loi: totalSlLoi,
+      tong_sl_tra: totalSlTra,
+      loi_ton: totalSlLoi - totalSlTra,
+      order_kds: [...orderKdSet],
+      ma_loi_counts: maLoiArr,
+    });
+  }
+
+  result.sort((a, b) => b.so_lan_loi - a.so_lan_loi);
+  return result;
+}
+
+/* ════════════════════════════════════════ */
+const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isFiltering }, ref) {
+  const [boPhan, setBoPhan] = useState("all");
+  const [sortModel, setSortModel] = useState([]);
+  const [search, setSearch] = useState("");
+  const [filterMaLoi, setFilterMaLoi] = useState(null);
+  const [minLanLoi, setMinLanLoi] = useState(3);
+  const [ngayNhanFrom, setNgayNhanFrom] = useState(null);
+  const [ngayNhanTo, setNgayNhanTo] = useState(null);
+
+  const deferredSearch = useDeferredValue(search);
+
+  /* ── Status data (localStorage) ── */
+  const LS_KEY = "theodoi_status_data";
+  const [statusData, setStatusData] = useState({});
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) setStatusData(JSON.parse(saved));
+    } catch { /* ignore */ }
+  }, []);
+
+  const updateStatus = useCallback((rowKey, field, value) => {
+    setStatusData(prev => {
+      const next = { ...prev, [rowKey]: { ...(prev[rowKey] || {}), [field]: value } };
+      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  /* ── All data (no bp/search filter, for unique options) ── */
+  const allDataForOptions = useMemo(() =>
+    processOrderData(rows, { minLan: 1, boPhan: "all", filterMaLoi: null, ngayNhanFrom: null, ngayNhanTo: null, search: "" }),
+  [rows]);
+
+  /* ── Unique mã lỗi options ── */
+  const uniqueMaLoi = useMemo(() => {
+    const set = new Set();
+    allDataForOptions.forEach(r => r.ma_loi_counts.forEach(m => set.add(m.code)));
+    return [...set].sort();
+  }, [allDataForOptions]);
+
+  /* ── Filtered + grouped data ── */
+  const orderRows = useMemo(() =>
+    processOrderData(rows, { minLan: minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, search: deferredSearch }),
+  [rows, minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, deferredSearch]);
+
+  /* ── Stats per bộ phận (filtered by date/mã lỗi/search but not boPhan) ── */
+  const allFilteredNoBp = useMemo(() =>
+    processOrderData(rows, { minLan: minLanLoi, boPhan: "all", filterMaLoi, ngayNhanFrom, ngayNhanTo, search: deferredSearch }),
+  [rows, minLanLoi, filterMaLoi, ngayNhanFrom, ngayNhanTo, deferredSearch]);
+
+  const boPhanStats = useMemo(() => {
+    const stats = { all: { count: allFilteredNoBp.length, slLoi: 0, loiTon: 0 } };
+    allFilteredNoBp.forEach(r => {
+      stats.all.slLoi += r.tong_sl_loi;
+      stats.all.loiTon += r.loi_ton;
+    });
+
+    for (const bp of BO_PHAN_LIST) {
+      const filtered = allFilteredNoBp.filter(r => r.noi_phat_sinh === bp.key);
+      stats[bp.key] = {
+        count: filtered.length,
+        slLoi: filtered.reduce((s, r) => s + r.tong_sl_loi, 0),
+        loiTon: filtered.reduce((s, r) => s + r.loi_ton, 0),
+      };
+    }
+    return stats;
+  }, [allFilteredNoBp]);
+
+  const hasActiveFilter = !!search || !!filterMaLoi || !!ngayNhanFrom || !!ngayNhanTo;
+  const clearAllFilters = useCallback(() => {
+    setSearch("");
+    setFilterMaLoi(null);
+    setNgayNhanFrom(null);
+    setNgayNhanTo(null);
+  }, []);
+
+  /* ── Export Excel ── */
+  const exportExcel = useCallback(() => {
+    import("xlsx").then(XLSX => {
+      const wb = XLSX.utils.book_new();
+      const headers = ["STT", "Tên chi tiết", "Số lần lỗi", "Mã lỗi (số lần)", "Các Order KD", "Tình trạng báo lỗi", "Ngày yêu cầu", "Ngày hoàn thành"];
+
+      for (const bp of BO_PHAN_LIST) {
+        const bpRows = allFilteredNoBp.filter(r => r.noi_phat_sinh === bp.key);
+        const data = bpRows.map((r, i) => {
+          const key = `${r.ten_chi_tiet}|||${r.noi_phat_sinh}`;
+          const st = statusData[key] || {};
+          return [
+            i + 1,
+            r.ten_chi_tiet,
+            r.so_lan_loi,
+            (r.ma_loi_counts || []).map(m => `${m.code} (${m.count})`).join(", "),
+            (r.order_kds || []).join(", "),
+            st.tinh_trang || "",
+            st.ngay_yeu_cau ? dayjs(st.ngay_yeu_cau).format("DD/MM/YYYY") : "",
+            st.ngay_hoan_thanh ? dayjs(st.ngay_hoan_thanh).format("DD/MM/YYYY") : "",
+          ];
+        });
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+        ws["!cols"] = headers.map((h, i) => ({
+          wch: Math.max(h.length, ...data.slice(0, 50).map(r => String(r[i] || "").length), 8),
+        }));
+        XLSX.utils.book_append_sheet(wb, ws, bp.label);
+      }
+
+      XLSX.writeFile(wb, `Theo_doi_don_hang_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    });
+  }, [allFilteredNoBp, statusData]);
+
+  useImperativeHandle(ref, () => ({ exportExcel }), [exportExcel]);
+
+  /* ── Columns ── */
+  const columns = useMemo(() => [
+    {
+      field: "ten_chi_tiet", headerName: "Tên chi tiết", minWidth: 160, width: 180,
+      renderCell: (p) => (
+        <span style={{ color: "#1e40af", fontWeight: 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={p.value}>
+          {p.value || "—"}
+        </span>
+      ),
+    },
+    {
+      field: "noi_phat_sinh", headerName: "Nơi phát sinh", minWidth: 140, width: 140, align: "center", headerAlign: "center",
+      renderCell: (p) => <NoiXuLyBadge value={p.value} />,
+    },
+    {
+      field: "so_lan_loi", headerName: "Số lần lỗi", minWidth: 120, width: 120, type: "number", align: "center", headerAlign: "center",
+      renderCell: (p) => {
+        const v = p.value || 0;
+        let bg = "#fef3c7", color = "#92400e";
+        if (v >= 5) { bg = "#fee2e2"; color = "#991b1b"; }
+        return <span style={{ padding: "2px 10px", borderRadius: 12, fontSize: 12, fontWeight: 700, background: bg, color, minWidth: 28, textAlign: "center" }}>{v}</span>;
+      },
+    },
+    {
+      field: "ma_loi_counts", headerName: "Mã lỗi (số lần)", minWidth: 350, flex: 2, sortable: false,
+      renderCell: (p) => {
+        const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        return (
+          <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
+            {arr.map(({ code, count }) => <MaLoiCountBadge key={code} code={code} count={count} />)}
+          </div>
+        );
+      },
+    },
+    {
+      field: "order_kds", headerName: "Các Order KD", minWidth: 200, flex: 1, sortable: false,
+      renderCell: (p) => {
+        const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        return (
+          <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflow: "hidden", alignItems: "center" }}>
+            {arr.map(o => (
+              <span key={o} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#f1f5f9", color: "#334155", whiteSpace: "nowrap", border: "1px solid #e2e8f0" }}>{o}</span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      field: "tinh_trang", headerName: "Tình trạng báo lỗi", minWidth: 180, width: 180, sortable: false,
+      renderCell: (p) => {
+        const key = `${p.row.ten_chi_tiet}|||${p.row.noi_phat_sinh}`;
+        const val = statusData[key]?.tinh_trang || null;
+        const color = val === "Yêu cầu báo lỗi" ? "#d97706" : val === "Hoàn thành báo lỗi" ? "#059669" : undefined;
+        return (
+          <Select
+            size="small" allowClear
+            value={val}
+            onChange={v => {
+              updateStatus(key, "tinh_trang", v || null);
+              if (!v) {
+                updateStatus(key, "ngay_yeu_cau", null);
+                updateStatus(key, "ngay_hoan_thanh", null);
+              } else {
+                const today = dayjs().format("YYYY-MM-DD");
+                if (v === "Yêu cầu báo lỗi") updateStatus(key, "ngay_yeu_cau", today);
+                if (v === "Hoàn thành báo lỗi") updateStatus(key, "ngay_hoan_thanh", today);
+              }
+            }}
+            placeholder="Chọn..."
+            style={{ width: "100%", ...(color ? { fontWeight: 600 } : {}) }}
+            onClick={e => e.stopPropagation()}
+            popupMatchSelectWidth={false}
+            options={[
+              { label: <span style={{ color: "#d97706", fontWeight: 600 }}>Yêu cầu báo lỗi</span>, value: "Yêu cầu báo lỗi" },
+              { label: <span style={{ color: "#059669", fontWeight: 600 }}>Hoàn thành báo lỗi</span>, value: "Hoàn thành báo lỗi" },
+            ]}
+          />
+        );
+      },
+    },
+    {
+      field: "ngay_yeu_cau", headerName: "Ngày yêu cầu", minWidth: 120, width: 120, sortable: false, align: "center", headerAlign: "center",
+      renderCell: (p) => {
+        const key = `${p.row.ten_chi_tiet}|||${p.row.noi_phat_sinh}`;
+        const val = statusData[key]?.ngay_yeu_cau;
+        return <span style={{ fontSize: 12, color: val ? "#1e293b" : "#d1d5db" }}>{val ? dayjs(val).format("DD/MM/YYYY") : "—"}</span>;
+      },
+    },
+    {
+      field: "ngay_hoan_thanh", headerName: "Ngày hoàn thành", minWidth: 145, width: 145, sortable: false, align: "center", headerAlign: "center",
+      renderCell: (p) => {
+        const key = `${p.row.ten_chi_tiet}|||${p.row.noi_phat_sinh}`;
+        const val = statusData[key]?.ngay_hoan_thanh;
+        return <span style={{ fontSize: 12, color: val ? "#059669" : "#d1d5db", fontWeight: val ? 600 : 400 }}>{val ? dayjs(val).format("DD/MM/YYYY") : "—"}</span>;
+      },
+    },
+  ], [statusData, updateStatus]);
+
+  /* ── Grid sx ── */
+  const gridSx = {
+    border: "none", fontSize: 13,
+    fontFamily: "var(--font-inter), Inter, sans-serif",
+    "& .MuiDataGrid-columnHeaders": {
+      backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0",
+      minHeight: "38px !important", maxHeight: "38px !important",
+    },
+    "& .MuiDataGrid-columnHeader": {
+      padding: "0 10px", "&:hover": { backgroundColor: "#f1f5f9" },
+    },
+    "& .MuiDataGrid-columnHeaderTitle": {
+      fontWeight: 500, fontSize: 13, color: "#111827",
+      textTransform: "none", letterSpacing: "0.01em",
+      overflow: "visible", textOverflow: "unset", whiteSpace: "nowrap",
+    },
+    "& .MuiDataGrid-sortIcon": { opacity: "1 !important", color: "#475569", fontSize: 15 },
+    "& .MuiDataGrid-columnSeparator": { display: "none" },
+    "& .MuiDataGrid-row": {
+      borderBottom: "1px solid #f1f5f9",
+      "&:hover": { backgroundColor: "#f0f7ff" },
+      "&:nth-of-type(even)": { backgroundColor: "#fafbfd" },
+    },
+    "& .MuiDataGrid-cell": {
+      borderBottom: "none", display: "flex", alignItems: "center", padding: "0 10px",
+    },
+    "& .MuiDataGrid-footerContainer": {
+      borderTop: "2px solid #e2e8f0", minHeight: 40, backgroundColor: "#f8fafc",
+    },
+    "& .MuiTablePagination-displayedRows": { fontSize: 13, color: "#64748b" },
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "#f1f5f9" }}>
+
+      {/* ── Filter toolbar ── */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+        padding: "6px 16px", background: "#fff", borderBottom: "1px solid #f0f0f0",
+      }}>
+        <Input
+          placeholder="Tìm tên chi tiết, order, mã lỗi..."
+          size="small" allowClear value={search}
+          prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
+          onChange={e => setSearch(e.target.value)}
+          style={{ width: 240, borderRadius: 6 }}
+        />
+        <div style={{ width: 1, height: 24, background: "#e5e7eb" }} />
+        <Select placeholder="Mã lỗi" allowClear value={filterMaLoi} size="small"
+          onChange={v => setFilterMaLoi(v || null)} style={{ minWidth: 150 }}
+          showSearch optionFilterProp="label"
+          options={uniqueMaLoi.map(v => ({ label: v, value: v }))} />
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>≥ lần:</span>
+          <InputNumber size="small" min={1} max={99} value={minLanLoi}
+            onChange={v => setMinLanLoi(v || 1)} style={{ width: 55 }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>Nhận từ:</span>
+          <DatePicker size="small" value={ngayNhanFrom} onChange={v => setNgayNhanFrom(v)}
+            format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} allowClear />
+          <span style={{ fontSize: 11, color: "#9ca3af" }}>→</span>
+          <DatePicker size="small" value={ngayNhanTo} onChange={v => setNgayNhanTo(v)}
+            format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 115 }} allowClear />
+        </div>
+        {hasActiveFilter && (
+          <Button type="link" danger size="small" icon={<ClearOutlined />}
+            onClick={clearAllFilters} style={{ padding: "0 6px", fontSize: 12 }}>Xóa lọc</Button>
+        )}
+        <div style={{ flex: 1 }} />
+        <Button size="small" icon={<DownloadOutlined />} onClick={exportExcel}>Xuất Excel</Button>
+      </div>
+
+      {/* ── Summary cards ── */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12,
+        padding: "12px 16px",
+      }}>
+        {BO_PHAN_LIST.map(bp => {
+          const st = boPhanStats[bp.key] || { count: 0, slLoi: 0, loiTon: 0 };
+          const isActive = boPhan === bp.key;
+          return (
+            <div
+              key={bp.key}
+              onClick={() => setBoPhan(boPhan === bp.key ? "all" : bp.key)}
+              style={{
+                background: "#fff",
+                borderRadius: 10,
+                padding: "12px 16px",
+                cursor: "pointer",
+                border: isActive ? `2px solid ${bp.color}` : "2px solid transparent",
+                boxShadow: isActive ? `0 0 0 3px ${bp.color}15` : "0 1px 3px rgba(0,0,0,0.06)",
+                transition: "all 0.2s",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {/* Accent bar */}
+              <div style={{
+                position: "absolute", top: 0, left: 0, right: 0, height: 3,
+                background: bp.gradient,
+              }} />
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 16 }}>{bp.icon}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: bp.color }}>{bp.label}</span>
+                </div>
+                <span style={{
+                  fontSize: 20, fontWeight: 800, color: bp.color,
+                }}>{st.count}</span>
+              </div>
+
+              <div style={{ display: "flex", gap: 16, fontSize: 11, color: "#6b7280" }}>
+                <div>
+                  <span style={{ color: "#9ca3af" }}>SL lỗi </span>
+                  <b style={{ color: "#dc2626" }}>{st.slLoi.toLocaleString()}</b>
+                </div>
+                <div>
+                  <span style={{ color: "#9ca3af" }}>Tồn </span>
+                  <b style={{ color: st.loiTon > 0 ? "#dc2626" : "#059669" }}>{st.loiTon.toLocaleString()}</b>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Table header ── */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "6px 16px", background: "#fff", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>
+            {boPhan === "all" ? "Tất cả bộ phận" : `Bộ phận: ${boPhan}`}
+          </span>
+          <span style={{
+            fontSize: 11, fontWeight: 700, padding: "1px 8px", borderRadius: 10,
+            background: "#dbeafe", color: "#1e40af",
+          }}>{orderRows.length} đơn hàng</span>
+          {boPhan !== "all" && (
+            <button
+              onClick={() => setBoPhan("all")}
+              style={{
+                fontSize: 11, color: "#6b7280", background: "#f3f4f6", border: "none",
+                padding: "2px 8px", borderRadius: 4, cursor: "pointer",
+              }}
+            >✕ Bỏ lọc</button>
+          )}
+        </div>
+        <span style={{ fontSize: 11, color: "#94a3b8" }}>
+          Chỉ hiển thị đơn hàng có ≥{minLanLoi} lần báo lỗi
+        </span>
+      </div>
+
+      {/* ── DataGrid ── */}
+      <div style={{
+        flex: 1, minHeight: 0, background: "#fff",
+        opacity: isFiltering ? 0.6 : 1, transition: "opacity 0.15s",
+      }}>
+        <DataGrid
+          rows={orderRows}
+          columns={columns}
+          getRowId={(row) => row.id}
+          loading={isLoading}
+          localeText={viVN.components.MuiDataGrid.defaultProps.localeText}
+          disableColumnMenu
+          disableColumnReorder
+          pageSizeOptions={[50, 100, 200]}
+          initialState={{ pagination: { paginationModel: { pageSize: 100 } } }}
+          disableRowSelectionOnClick
+          sortModel={sortModel}
+          onSortModelChange={setSortModel}
+          disableMultipleColumnsSorting
+          density="compact"
+          sx={gridSx}
+        />
+      </div>
+    </div>
+  );
+});
+
+export default TheoDoiDonHang;
