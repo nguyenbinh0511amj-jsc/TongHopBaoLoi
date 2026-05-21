@@ -481,7 +481,7 @@ export default function TongHopThongKeLoiPage() {
       XLSX.utils.book_append_sheet(wb, ws1, "Tổng hợp");
 
       // ── Sheet 2: Chi tiết (all individual entries) ──
-      const detailHeaders = ["STT", "Tên chi tiết", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Ngày nhận hàng", "Người chuyển lỗi", "Trạng thái"];
+      const detailHeaders = ["STT", "Tên chi tiết", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Ngày nhận hàng", "Trạng thái"];
       const detailData = [];
       let stt = 0;
       rows.forEach(r => {
@@ -500,7 +500,6 @@ export default function TongHopThongKeLoiPage() {
             e.noi_xu_ly_loi || "",
             e.noi_phat_sinh_loi || "",
             toVNDate(e._ngay_nhan) || "",
-            e.ho_va_ten || "",
             e.trang_thai || "",
           ]);
         });
@@ -512,7 +511,7 @@ export default function TongHopThongKeLoiPage() {
       XLSX.utils.book_append_sheet(wb, ws2, "Chi tiết");
 
       // Download
-      XLSX.writeFile(wb, `TH_thong_ke_loi_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      XLSX.writeFile(wb, `Thong_ke_bao_loi_${new Date().toISOString().slice(0, 10)}.xlsx`);
     });
   }, [rows]);
 
