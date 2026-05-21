@@ -29,11 +29,29 @@
   .page-container {
     height: calc(100dvh - 44px) !important;
     gap: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* ── Header: compact ── */
+  header .flex.items-center.justify-between {
+    height: 36px !important;
+    padding: 0 8px !important;
+  }
+  header nav .font-medium,
+  header nav .font-semibold {
+    font-size: 12px !important;
+  }
+
+  /* ── Main card: no border-radius on mobile ── */
+  .main-card {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
   }
 
   /* ── Tab Bar: cuộn ngang, text nhỏ hơn ── */
   .tab-bar {
-    padding: 0 8px !important;
+    padding: 0 4px !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -45,108 +63,110 @@
     gap: 0 !important;
   }
   .tab-bar .tab-btn {
-    padding: 8px 12px !important;
+    padding: 7px 10px !important;
     font-size: 12px !important;
     white-space: nowrap;
     flex-shrink: 0;
   }
 
-  /* ── Stats row (Tab 1): wrap và nhỏ hơn ── */
+  /* ── Stats row (Tab 1): compact ── */
   .stats-row {
     padding: 4px 8px !important;
-    gap: 8px !important;
+    gap: 6px !important;
     flex-wrap: wrap !important;
   }
   .stats-row > div {
-    gap: 4px !important;
+    gap: 3px !important;
   }
   .stats-row span {
     font-size: 11px !important;
   }
 
-  /* ── Filter toolbar: cuộn ngang ── */
+  /* ── Filter toolbar: wrap xuống dòng trên mobile ── */
   .filter-toolbar {
     padding: 6px 8px !important;
-    gap: 6px !important;
-    overflow-x: auto !important;
-    flex-wrap: nowrap !important;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .filter-toolbar::-webkit-scrollbar {
-    display: none;
+    gap: 5px !important;
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
   }
   .filter-toolbar .ant-input-affix-wrapper {
-    width: 160px !important;
-    min-width: 160px !important;
+    width: 140px !important;
+    min-width: 140px !important;
     flex-shrink: 0 !important;
+    height: 28px !important;
   }
   .filter-toolbar .ant-select {
-    min-width: 120px !important;
+    min-width: 100px !important;
     flex-shrink: 0 !important;
+  }
+  .filter-toolbar .ant-select .ant-select-selector {
+    height: 28px !important;
+    font-size: 11px !important;
   }
   .filter-toolbar .ant-picker {
-    width: 105px !important;
-    min-width: 105px !important;
+    width: 100px !important;
+    min-width: 100px !important;
     flex-shrink: 0 !important;
+    height: 28px !important;
   }
   .filter-toolbar .ant-input-number {
-    width: 50px !important;
-    min-width: 50px !important;
+    width: 45px !important;
+    min-width: 45px !important;
     flex-shrink: 0 !important;
+    height: 28px !important;
   }
   .filter-toolbar .ant-btn {
     flex-shrink: 0 !important;
+    height: 28px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
   }
-  /* Separators */
+  .filter-toolbar .ant-btn .anticon {
+    font-size: 12px !important;
+  }
+  /* Hide separators & filler div */
   .filter-toolbar > div[style*="width: 1px"],
-  .filter-toolbar > div[style*="width:1px"] {
-    display: none !important;
-  }
-  /* Date group containers */
-  .filter-toolbar > div[style*="gap: 4"] {
-    flex-shrink: 0 !important;
-    white-space: nowrap;
-  }
-  .filter-toolbar > div[style*="gap:4"] {
-    flex-shrink: 0 !important;
-    white-space: nowrap;
-  }
-  /* Filler div */
+  .filter-toolbar > div[style*="width:1px"],
   .filter-toolbar > div[style*="flex: 1"],
   .filter-toolbar > div[style*="flex:1"] {
     display: none !important;
   }
-  /* Row count text */
+  /* Hide row count (last span direct child with "bản ghi") */
   .filter-toolbar > span {
     display: none !important;
   }
+  /* Date group containers */
+  .filter-toolbar > div[style*="gap: 4"],
+  .filter-toolbar > div[style*="gap:4"] {
+    flex-shrink: 0 !important;
+    white-space: nowrap;
+  }
 
-  /* ── Stat Cards grid: 4 → 2 cột ── */
-  .stat-grid,
+  /* ── BP cards grid: 2 cột ── */
   .bp-cards-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 6px !important;
-    padding: 8px !important;
+    padding: 6px 8px !important;
   }
-  .stat-grid > div,
   .bp-cards-grid > div {
-    padding: 8px 10px !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
   }
 
-  /* ── Summary Cards (Báo cáo tab): 4 → 2 cột ── */
+  /* ── Summary Cards (Báo cáo tab): 2 cột ── */
   .summary-cards {
     flex-wrap: wrap !important;
-    gap: 8px !important;
-    padding: 8px 12px !important;
+    gap: 6px !important;
+    padding: 8px !important;
   }
   .summary-cards > div {
-    min-width: calc(50% - 4px) !important;
-    flex: 0 0 calc(50% - 4px) !important;
-    padding: 10px 12px !important;
+    min-width: calc(50% - 3px) !important;
+    flex: 0 0 calc(50% - 3px) !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
   }
 
-  /* ── Charts Section (Báo cáo tab): stack vertically ── */
+  /* ── Charts Section (Báo cáo tab): stack dọc ── */
   .charts-section {
     flex-direction: column !important;
     padding: 0 8px 8px !important;
@@ -155,12 +175,13 @@
   .charts-section > div {
     min-width: unset !important;
     flex: unset !important;
+    width: 100% !important;
     padding: 12px !important;
   }
 
   /* ── Table header row (Theo dõi tab) ── */
   .table-header {
-    padding: 4px 8px !important;
+    padding: 3px 8px !important;
     flex-wrap: wrap !important;
     gap: 4px !important;
   }
@@ -168,39 +189,44 @@
     font-size: 11px !important;
   }
 
-  /* ── DataGrid — font nhỏ hơn, compact hơn ── */
-  .datagrid-wrapper .MuiDataGrid-root {
-    font-size: 12px !important;
-  }
-  .datagrid-wrapper .MuiDataGrid-columnHeaderTitle {
-    font-size: 11px !important;
-  }
-  .datagrid-wrapper .MuiDataGrid-footerContainer {
-    min-height: 32px !important;
-  }
-  .datagrid-wrapper .MuiTablePagination-displayedRows,
-  .datagrid-wrapper .MuiTablePagination-selectLabel {
-    font-size: 11px !important;
-  }
-  .datagrid-wrapper .MuiTablePagination-select,
-  .datagrid-wrapper .MuiTablePagination-selectLabel,
-  .datagrid-wrapper .MuiInputBase-root.MuiTablePagination-input {
-    display: none !important;
-  }
-
-  /* ── MuiDataGrid (without .datagrid-wrapper — for other tabs) ── */
+  /* ── DataGrid — compact ── */
   .MuiDataGrid-root {
     font-size: 12px !important;
   }
   .MuiDataGrid-columnHeaderTitle {
     font-size: 11px !important;
+    font-weight: 600 !important;
+  }
+  .MuiDataGrid-cell {
+    padding: 2px 6px !important;
   }
   .MuiDataGrid-footerContainer {
     min-height: 32px !important;
+    padding: 0 4px !important;
   }
   .MuiTablePagination-displayedRows,
   .MuiTablePagination-selectLabel {
     font-size: 11px !important;
+  }
+  /* Hide page size selector on mobile */
+  .MuiTablePagination-select,
+  .MuiTablePagination-selectLabel,
+  .MuiInputBase-root.MuiTablePagination-input {
+    display: none !important;
+  }
+
+  /* ── Ant Design controls in cells ── */
+  .MuiDataGrid-cell .ant-select {
+    font-size: 11px !important;
+  }
+  .MuiDataGrid-cell .ant-select .ant-select-selector {
+    height: 26px !important;
+    padding: 0 6px !important;
+  }
+  .MuiDataGrid-cell .ant-picker {
+    font-size: 11px !important;
+    height: 26px !important;
+    padding: 0 6px !important;
   }
 
   /* ── Modal responsive ── */
@@ -212,98 +238,125 @@
     max-height: calc(100dvh - 200px);
     overflow-y: auto;
   }
-
-  /* ── Header ── */
-  header .flex.items-center.gap-3 > span.hidden {
-    display: none !important;
-  }
-  header .flex.items-center.gap-2 > div.w-7 {
-    width: 24px !important;
-    height: 24px !important;
-  }
-  header h-10 {
-    height: 36px !important;
-  }
-  
-  /* ── Ant Design Select dropdown in cells ── */
-  .MuiDataGrid-cell .ant-select {
-    font-size: 11px !important;
-  }
-  .MuiDataGrid-cell .ant-picker {
-    font-size: 11px !important;
-  }
 }
 
 /* ═══════════ PHONE (≤ 480px) ═══════════ */
 @media screen and (max-width: 480px) {
   .page-container {
-    height: calc(100dvh - 40px) !important;
+    height: calc(100dvh - 36px) !important;
   }
 
-  /* ── Tab bar: even smaller ── */
+  /* ── Header: minimal ── */
+  header .flex.items-center.justify-between {
+    height: 32px !important;
+  }
+  header nav .font-medium {
+    display: none !important;
+  }
+  header [class*="hidden"][class*="sm:block"] {
+    display: none !important;
+  }
+  header [class*="px-1"][class*="py-0"] {
+    display: none !important;
+  }
+  header [class*="border-l"][class*="pl-3"] {
+    padding-left: 8px !important;
+  }
+  header [class*="w-7"][class*="h-7"] {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  /* ── Tab bar: smaller ── */
   .tab-bar .tab-btn {
-    padding: 6px 10px !important;
+    padding: 6px 8px !important;
     font-size: 11px !important;
   }
 
-  /* ── Filter toolbar: narrower inputs ── */
+  /* ── Filter: narrower ── */
+  .filter-toolbar {
+    padding: 3px 6px !important;
+    gap: 3px !important;
+  }
   .filter-toolbar .ant-input-affix-wrapper {
-    width: 130px !important;
-    min-width: 130px !important;
+    width: 110px !important;
+    min-width: 110px !important;
   }
   .filter-toolbar .ant-select {
-    min-width: 100px !important;
+    min-width: 85px !important;
   }
   .filter-toolbar .ant-picker {
-    width: 95px !important;
-    min-width: 95px !important;
+    width: 90px !important;
+    min-width: 90px !important;
   }
 
-  /* Stats row: hide labels */
+  /* ── Stats row: compact ── */
   .stats-row {
-    padding: 3px 6px !important;
-    gap: 6px !important;
+    padding: 2px 6px !important;
+    gap: 4px !important;
+  }
+  .stats-row span {
+    font-size: 10px !important;
   }
 
-  /* ── Summary cards: 1 column on very small ── */
+  /* ── Summary cards: 1 cột ── */
   .summary-cards > div {
     min-width: 100% !important;
     flex: 0 0 100% !important;
+    padding: 8px !important;
   }
 
-  /* ── DataGrid: even smaller ── */
+  /* ── DataGrid: smaller ── */
   .MuiDataGrid-root {
     font-size: 11px !important;
   }
   .MuiDataGrid-columnHeaderTitle {
     font-size: 10px !important;
   }
+  .MuiDataGrid-cell {
+    padding: 1px 4px !important;
+  }
 
-  /* ── BP cards grid: 2 col still but smaller ── */
+  /* ── BP cards: compact ── */
   .bp-cards-grid {
     gap: 4px !important;
-    padding: 6px !important;
+    padding: 4px 6px !important;
   }
   .bp-cards-grid > div {
-    padding: 6px 8px !important;
-    border-radius: 8px !important;
+    padding: 6px !important;
+    border-radius: 6px !important;
   }
 
-  /* ── Charts stacked ── */
+  /* ── Charts compact ── */
+  .charts-section {
+    padding: 0 6px 6px !important;
+    gap: 6px !important;
+  }
   .charts-section > div {
     padding: 10px !important;
     border-radius: 8px !important;
   }
 
-  /* Modal: full width */
+  /* ── Table header ── */
+  .table-header {
+    padding: 2px 6px !important;
+  }
+  .table-header span {
+    font-size: 10px !important;
+  }
+
+  /* ── Modal: full width ── */
   .ant-modal {
     max-width: calc(100vw - 16px) !important;
     margin: 8px auto !important;
   }
 
-  /* Table header */
-  .table-header {
-    padding: 3px 6px !important;
+  /* ── Export button text: hide label, show icon only ── */
+  .filter-toolbar .ant-btn span:not(.anticon) {
+    display: none !important;
+  }
+  .filter-toolbar .ant-btn .anticon {
+    margin: 0 !important;
   }
 }
 
@@ -311,9 +364,7 @@
 @media (hover: none) and (pointer: coarse) {
   /* Bigger touch targets */
   .MuiDataGrid-cell {
-    padding-top: 4px !important;
-    padding-bottom: 4px !important;
-    min-height: 36px !important;
+    min-height: 38px !important;
   }
   .MuiDataGrid-columnHeader {
     padding-top: 6px !important;
@@ -322,7 +373,7 @@
 
   /* Tab buttons: bigger tap area */
   .tab-btn {
-    min-height: 40px !important;
+    min-height: 38px !important;
   }
 
   /* Hide scrollbar on touch */
@@ -331,5 +382,13 @@
   }
   .filter-toolbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Better select/picker touch areas */
+  .ant-select-selector {
+    min-height: 32px !important;
+  }
+  .ant-picker {
+    min-height: 32px !important;
   }
 }
