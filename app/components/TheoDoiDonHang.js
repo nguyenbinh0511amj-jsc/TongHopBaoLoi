@@ -303,7 +303,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
-      const headers = ["STT", "Tên chi tiết", "Số lần lỗi", "Mã lỗi (số lần)", "Các Order KD", "Tình trạng báo lỗi", "Ngày yêu cầu", "Ngày hoàn thành"];
+      const headers = ["STT", "Tên chi tiết", "Số lần lỗi", "Mã lỗi (số lần)", "Các Order KD", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành"];
 
       for (const bp of BO_PHAN_LIST) {
         const bpRows = allFilteredNoBp.filter(r => r.noi_phat_sinh === bp.key);
@@ -318,6 +318,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
             (r.order_kds || []).join(", "),
             st.tinh_trang || "",
             st.ngay_yeu_cau ? dayjs(st.ngay_yeu_cau).format("DD/MM/YYYY") : "",
+            st.thoi_han ? dayjs(st.thoi_han).format("DD/MM/YYYY") : "",
             st.ngay_hoan_thanh ? dayjs(st.ngay_hoan_thanh).format("DD/MM/YYYY") : "",
           ];
         });
@@ -426,6 +427,39 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         const key = `${p.row.ten_chi_tiet}|||${p.row.noi_phat_sinh}`;
         const val = statusData[key]?.ngay_yeu_cau;
         return <span style={{ fontSize: 12, color: val ? "#1e293b" : "#d1d5db" }}>{val ? dayjs(val).format("DD/MM/YYYY") : "—"}</span>;
+      },
+    },
+    {
+      field: "thoi_han", headerName: "Thời hạn", minWidth: 140, width: 140, sortable: false, align: "center", headerAlign: "center",
+      renderCell: (p) => {
+        const key = `${p.row.ten_chi_tiet}|||${p.row.noi_phat_sinh}`;
+        const val = statusData[key]?.thoi_han;
+        const parsedVal = val ? dayjs(val) : null;
+
+        // Check if overdue
+        const isOverdue = parsedVal && parsedVal.isValid() && parsedVal.isBefore(dayjs(), 'day') && statusData[key]?.tinh_trang !== "Hoàn thành báo lỗi";
+
+        const doChange = (date) => {
+          updateStatus(key, "thoi_han", date ? date.format("YYYY-MM-DD") : null);
+        };
+
+        return (
+          <DatePicker
+            size="small"
+            value={parsedVal && parsedVal.isValid() ? parsedVal : null}
+            onChange={date => requirePassword(() => doChange(date))}
+            format="DD/MM/YYYY"
+            placeholder={isUnlocked ? "Chọn..." : "🔒"}
+            allowClear
+            onClear={() => requirePassword(() => doChange(null))}
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%",
+              ...(isOverdue ? { borderColor: "#dc2626" } : {}),
+            }}
+            status={isOverdue ? "error" : undefined}
+          />
+        );
       },
     },
     {
