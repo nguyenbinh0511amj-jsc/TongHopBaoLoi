@@ -59,7 +59,7 @@ function parseEntryDate(val) {
 }
 
 /* ── Process: filter entries → group → count ── */
-function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, search }) {
+function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search }) {
   // 1. Flatten all entries
   let allEntries = [];
   rows.forEach(group => {
@@ -81,6 +81,15 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
       if (!d || !d.isValid()) return false;
       if (ngayNhanFrom && d.isBefore(ngayNhanFrom, 'day')) return false;
       if (ngayNhanTo && d.isAfter(ngayNhanTo, 'day')) return false;
+      return true;
+    });
+  }
+  if (ngayBaoLoiFrom || ngayBaoLoiTo) {
+    allEntries = allEntries.filter(e => {
+      const d = parseEntryDate(e.ngay_bao_loi);
+      if (!d || !d.isValid()) return false;
+      if (ngayBaoLoiFrom && d.isBefore(ngayBaoLoiFrom, 'day')) return false;
+      if (ngayBaoLoiTo && d.isAfter(ngayBaoLoiTo, 'day')) return false;
       return true;
     });
   }
@@ -162,6 +171,8 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const [minLanLoi, setMinLanLoi] = useState(3);
   const [ngayNhanFrom, setNgayNhanFrom] = useState(null);
   const [ngayNhanTo, setNgayNhanTo] = useState(null);
+  const [ngayBaoLoiFrom, setNgayBaoLoiFrom] = useState(null);
+  const [ngayBaoLoiTo, setNgayBaoLoiTo] = useState(null);
 
   /* ── Password protection ── */
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -265,13 +276,13 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
 
   /* ── Filtered + grouped data ── */
   const orderRows = useMemo(() =>
-    processOrderData(rows, { minLan: minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, search: deferredSearch }),
-  [rows, minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, deferredSearch]);
+    processOrderData(rows, { minLan: minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search: deferredSearch }),
+  [rows, minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, deferredSearch]);
 
   /* ── Stats per bộ phận (filtered by date/mã lỗi/search but not boPhan) ── */
   const allFilteredNoBp = useMemo(() =>
-    processOrderData(rows, { minLan: minLanLoi, boPhan: "all", filterMaLoi, ngayNhanFrom, ngayNhanTo, search: deferredSearch }),
-  [rows, minLanLoi, filterMaLoi, ngayNhanFrom, ngayNhanTo, deferredSearch]);
+    processOrderData(rows, { minLan: minLanLoi, boPhan: "all", filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search: deferredSearch }),
+  [rows, minLanLoi, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, deferredSearch]);
 
   const boPhanStats = useMemo(() => {
     const stats = { all: { count: allFilteredNoBp.length, slLoi: 0, loiTon: 0 } };
@@ -291,12 +302,14 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
     return stats;
   }, [allFilteredNoBp]);
 
-  const hasActiveFilter = !!search || !!filterMaLoi || !!ngayNhanFrom || !!ngayNhanTo;
+  const hasActiveFilter = !!search || !!filterMaLoi || !!ngayNhanFrom || !!ngayNhanTo || !!ngayBaoLoiFrom || !!ngayBaoLoiTo;
   const clearAllFilters = useCallback(() => {
     setSearch("");
     setFilterMaLoi(null);
     setNgayNhanFrom(null);
     setNgayNhanTo(null);
+    setNgayBaoLoiFrom(null);
+    setNgayBaoLoiTo(null);
   }, []);
 
   /* ── Export Excel ── */
@@ -535,6 +548,14 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
             format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} allowClear />
           <span style={{ fontSize: 11, color: "#9ca3af" }}>→</span>
           <DatePicker size="small" value={ngayNhanTo} onChange={v => setNgayNhanTo(v)}
+            format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 115 }} allowClear />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>Báo lỗi từ:</span>
+          <DatePicker size="small" value={ngayBaoLoiFrom} onChange={v => setNgayBaoLoiFrom(v)}
+            format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} allowClear />
+          <span style={{ fontSize: 11, color: "#9ca3af" }}>→</span>
+          <DatePicker size="small" value={ngayBaoLoiTo} onChange={v => setNgayBaoLoiTo(v)}
             format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 115 }} allowClear />
         </div>
         {hasActiveFilter && (

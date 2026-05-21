@@ -10,6 +10,7 @@ import {
   FilterOutlined, UnorderedListOutlined, AppstoreOutlined,
 } from "@ant-design/icons";
 import TheoDoiDonHang from "./components/TheoDoiDonHang";
+import BaoCaoTinhTrang from "./components/BaoCaoTinhTrang";
 
 import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
@@ -209,6 +210,8 @@ export default function TongHopThongKeLoiPage() {
   const [minLanLoi, setMinLanLoi] = useState(3);
   const [ngayNhanFrom, setNgayNhanFrom] = useState(null);
   const [ngayNhanTo, setNgayNhanTo] = useState(null);
+  const [ngayBaoLoiFrom, setNgayBaoLoiFrom] = useState(null);
+  const [ngayBaoLoiTo, setNgayBaoLoiTo] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [sortModel, setSortModel] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -230,6 +233,8 @@ export default function TongHopThongKeLoiPage() {
   const deferredMinLan = useDeferredValue(minLanLoi);
   const deferredNgayNhanFrom = useDeferredValue(ngayNhanFrom);
   const deferredNgayNhanTo = useDeferredValue(ngayNhanTo);
+  const deferredNgayBaoLoiFrom = useDeferredValue(ngayBaoLoiFrom);
+  const deferredNgayBaoLoiTo = useDeferredValue(ngayBaoLoiTo);
 
   /* ── Fetch both tables — lower staleTime for faster updates ── */
   const { data: rawLoi = [], isLoading: loadingLoi, isRefetching: refetchingLoi } = useQuery({
@@ -300,13 +305,20 @@ export default function TongHopThongKeLoiPage() {
     }
 
     // ── Entry-level filters: lọc sâu vào từng entry trong nhóm ──
-    const hasEntryFilter = !!deferredMaLoi || !!deferredNoiXuLy || !!deferredNoiPhatSinh || !!deferredNgayNhanFrom || !!deferredNgayNhanTo;
+    const hasEntryFilter = !!deferredMaLoi || !!deferredNoiXuLy || !!deferredNoiPhatSinh || !!deferredNgayNhanFrom || !!deferredNgayNhanTo || !!deferredNgayBaoLoiFrom || !!deferredNgayBaoLoiTo;
     if (hasEntryFilter) {
-      const isDateInRange = (dateStr) => {
+      const isNgayNhanInRange = (dateStr) => {
         const d = parseDateMMDD(dateStr);
         if (!d || !d.isValid()) return false;
         if (deferredNgayNhanFrom && d.isBefore(deferredNgayNhanFrom, "day")) return false;
         if (deferredNgayNhanTo && d.isAfter(deferredNgayNhanTo, "day")) return false;
+        return true;
+      };
+      const isNgayBaoLoiInRange = (dateStr) => {
+        const d = parseDateMMDD(dateStr);
+        if (!d || !d.isValid()) return false;
+        if (deferredNgayBaoLoiFrom && d.isBefore(deferredNgayBaoLoiFrom, "day")) return false;
+        if (deferredNgayBaoLoiTo && d.isAfter(deferredNgayBaoLoiTo, "day")) return false;
         return true;
       };
 
@@ -330,7 +342,12 @@ export default function TongHopThongKeLoiPage() {
 
         // Lọc theo ngày nhận hàng
         if (deferredNgayNhanFrom || deferredNgayNhanTo) {
-          filteredEntries = filteredEntries.filter(e => e._ngay_nhan && isDateInRange(e._ngay_nhan));
+          filteredEntries = filteredEntries.filter(e => e._ngay_nhan && isNgayNhanInRange(e._ngay_nhan));
+        }
+
+        // Lọc theo ngày báo lỗi
+        if (deferredNgayBaoLoiFrom || deferredNgayBaoLoiTo) {
+          filteredEntries = filteredEntries.filter(e => e.ngay_bao_loi && isNgayBaoLoiInRange(e.ngay_bao_loi));
         }
 
         if (!filteredEntries.length) return null;
@@ -363,7 +380,7 @@ export default function TongHopThongKeLoiPage() {
     }
 
     return data;
-  }, [processed, deferredSearch, deferredMaLoi, deferredTenChiTiet, deferredNoiXuLy, deferredNoiPhatSinh, deferredMinLan, deferredNgayNhanFrom, deferredNgayNhanTo]);
+  }, [processed, deferredSearch, deferredMaLoi, deferredTenChiTiet, deferredNoiXuLy, deferredNoiPhatSinh, deferredMinLan, deferredNgayNhanFrom, deferredNgayNhanTo, deferredNgayBaoLoiFrom, deferredNgayBaoLoiTo]);
 
   /* ── Stats ── */
   const stats = useMemo(() => ({
@@ -373,8 +390,8 @@ export default function TongHopThongKeLoiPage() {
     loiTon: rows.reduce((s, r) => s + r.loi_ton, 0),
   }), [rows]);
 
-  const hasActiveFilter = !!filterMaLoi || !!filterTenChiTiet || !!filterNoiXuLy || !!filterNoiPhatSinh || !!ngayNhanFrom || !!ngayNhanTo;
-  const isFiltering = deferredSearch !== search || deferredMaLoi !== filterMaLoi || deferredTenChiTiet !== filterTenChiTiet || deferredNoiXuLy !== filterNoiXuLy || deferredNoiPhatSinh !== filterNoiPhatSinh || deferredMinLan !== minLanLoi || deferredNgayNhanFrom !== ngayNhanFrom || deferredNgayNhanTo !== ngayNhanTo;
+  const hasActiveFilter = !!filterMaLoi || !!filterTenChiTiet || !!filterNoiXuLy || !!filterNoiPhatSinh || !!ngayNhanFrom || !!ngayNhanTo || !!ngayBaoLoiFrom || !!ngayBaoLoiTo;
+  const isFiltering = deferredSearch !== search || deferredMaLoi !== filterMaLoi || deferredTenChiTiet !== filterTenChiTiet || deferredNoiXuLy !== filterNoiXuLy || deferredNoiPhatSinh !== filterNoiPhatSinh || deferredMinLan !== minLanLoi || deferredNgayNhanFrom !== ngayNhanFrom || deferredNgayNhanTo !== ngayNhanTo || deferredNgayBaoLoiFrom !== ngayBaoLoiFrom || deferredNgayBaoLoiTo !== ngayBaoLoiTo;
 
   /* ── Toggle expand ── */
   const toggleExpand = useCallback((id) => {
@@ -508,6 +525,8 @@ export default function TongHopThongKeLoiPage() {
     setFilterNoiPhatSinh(null);
     setNgayNhanFrom(null);
     setNgayNhanTo(null);
+    setNgayBaoLoiFrom(null);
+    setNgayBaoLoiTo(null);
   }, []);
 
   /* ── Columns ── */
@@ -688,6 +707,7 @@ export default function TongHopThongKeLoiPage() {
   const mainTabs = [
     { key: "thongke", label: "Thống kê báo lỗi", color: "#1e40af", border: "#2563eb", bg: "#eff6ff" },
     { key: "theodoi", label: "Theo dõi đơn hàng cần báo lỗi", color: "#b45309", border: "#d97706", bg: "#fffbeb" },
+    { key: "baocao", label: "Báo cáo tình trạng", color: "#7c3aed", border: "#8b5cf6", bg: "#f5f3ff" },
   ];
 
   return (
@@ -774,6 +794,14 @@ export default function TongHopThongKeLoiPage() {
                 format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} allowClear />
               <span style={{ fontSize: 11, color: "#9ca3af" }}>→</span>
               <DatePicker size="small" value={ngayNhanTo} onChange={v => setNgayNhanTo(v)}
+                format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 115 }} allowClear />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>Báo lỗi từ:</span>
+              <DatePicker size="small" value={ngayBaoLoiFrom} onChange={v => setNgayBaoLoiFrom(v)}
+                format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} allowClear />
+              <span style={{ fontSize: 11, color: "#9ca3af" }}>→</span>
+              <DatePicker size="small" value={ngayBaoLoiTo} onChange={v => setNgayBaoLoiTo(v)}
                 format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 115 }} allowClear />
             </div>
             {hasActiveFilter && (
@@ -887,9 +915,12 @@ export default function TongHopThongKeLoiPage() {
             />
           </div>
         </>
-      ) : (
+      ) : activeTab === "theodoi" ? (
         /* Theo dõi đơn hàng cần báo lỗi - độc lập */
         <TheoDoiDonHang rows={processed} isLoading={isLoading} isFiltering={false} />
+      ) : (
+        /* Báo cáo tình trạng */
+        <BaoCaoTinhTrang rows={processed} />
       )}
     </div>
   );
