@@ -1,9 +1,9 @@
 "use client";
-import { useState, useMemo, useEffect, forwardRef, useImperativeHandle, useCallback, useDeferredValue } from "react";
+import { useState, useMemo, useEffect, forwardRef, useImperativeHandle, useCallback, useDeferredValue, useRef } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { viVN } from "@mui/x-data-grid/locales";
-import { Input, Select, InputNumber, Button, DatePicker } from "antd";
-import { SearchOutlined, DownloadOutlined, ClearOutlined } from "@ant-design/icons";
+import { Input, Select, InputNumber, Button, DatePicker, Modal, App as AntApp } from "antd";
+import { SearchOutlined, DownloadOutlined, ClearOutlined, LockOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
@@ -144,7 +144,10 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
 }
 
 /* ════════════════════════════════════════ */
+const EDIT_PASSWORD = "admin123";
+
 const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isFiltering }, ref) {
+  const { message } = AntApp.useApp();
   const [boPhan, setBoPhan] = useState("all");
   const [sortModel, setSortModel] = useState([]);
   const [search, setSearch] = useState("");
@@ -152,6 +155,40 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const [minLanLoi, setMinLanLoi] = useState(3);
   const [ngayNhanFrom, setNgayNhanFrom] = useState(null);
   const [ngayNhanTo, setNgayNhanTo] = useState(null);
+
+  /* ── Password protection ── */
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [pwInput, setPwInput] = useState("");
+  const [pwError, setPwError] = useState(false);
+  const pendingAction = useRef(null);
+
+  const requirePassword = useCallback((action) => {
+    if (isUnlocked) {
+      action();
+      return;
+    }
+    pendingAction.current = action;
+    setPwInput("");
+    setPwError(false);
+    setShowPwModal(true);
+  }, [isUnlocked]);
+
+  const handlePwSubmit = useCallback(() => {
+    if (pwInput === EDIT_PASSWORD) {
+      setIsUnlocked(true);
+      setShowPwModal(false);
+      setPwInput("");
+      setPwError(false);
+      message.success("Đã mở khóa! Bạn có thể chỉnh sửa tình trạng báo lỗi.");
+      if (pendingAction.current) {
+        pendingAction.current();
+        pendingAction.current = null;
+      }
+    } else {
+      setPwError(true);
+    }
+  }, [pwInput, message]);
 
   const deferredSearch = useDeferredValue(search);
 
@@ -312,22 +349,26 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         const key = `${p.row.ten_chi_tiet}|||${p.row.noi_phat_sinh}`;
         const val = statusData[key]?.tinh_trang || null;
         const color = val === "Yêu cầu báo lỗi" ? "#d97706" : val === "Hoàn thành báo lỗi" ? "#059669" : undefined;
+
+        const doChange = (v) => {
+          updateStatus(key, "tinh_trang", v || null);
+          if (!v) {
+            updateStatus(key, "ngay_yeu_cau", null);
+            updateStatus(key, "ngay_hoan_thanh", null);
+          } else {
+            const today = dayjs().format("YYYY-MM-DD");
+            if (v === "Yêu cầu báo lỗi") updateStatus(key, "ngay_yeu_cau", today);
+            if (v === "Hoàn thành báo lỗi") updateStatus(key, "ngay_hoan_thanh", today);
+          }
+        };
+
         return (
           <Select
             size="small" allowClear
             value={val}
-            onChange={v => {
-              updateStatus(key, "tinh_trang", v || null);
-              if (!v) {
-                updateStatus(key, "ngay_yeu_cau", null);
-                updateStatus(key, "ngay_hoan_thanh", null);
-              } else {
-                const today = dayjs().format("YYYY-MM-DD");
-                if (v === "Yêu cầu báo lỗi") updateStatus(key, "ngay_yeu_cau", today);
-                if (v === "Hoàn thành báo lỗi") updateStatus(key, "ngay_hoan_thanh", today);
-              }
-            }}
-            placeholder="Chọn..."
+            onChange={v => requirePassword(() => doChange(v))}
+            onClear={() => requirePassword(() => doChange(null))}
+            placeholder={isUnlocked ? "Chọn..." : "🔒 Chọn..."}
             style={{ width: "100%", ...(color ? { fontWeight: 600 } : {}) }}
             onClick={e => e.stopPropagation()}
             popupMatchSelectWidth={false}
@@ -355,7 +396,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         return <span style={{ fontSize: 12, color: val ? "#059669" : "#d1d5db", fontWeight: val ? 600 : 400 }}>{val ? dayjs(val).format("DD/MM/YYYY") : "—"}</span>;
       },
     },
-  ], [statusData, updateStatus]);
+  ], [statusData, updateStatus, requirePassword, isUnlocked]);
 
   /* ── Grid sx ── */
   const gridSx = {
@@ -536,6 +577,44 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
           sx={gridSx}
         />
       </div>
+
+      {/* ── Password Modal ── */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <LockOutlined style={{ color: "#d97706" }} />
+            <span>Nhập mật khẩu để chỉnh sửa</span>
+          </div>
+        }
+        open={showPwModal}
+        onOk={handlePwSubmit}
+        onCancel={() => { setShowPwModal(false); setPwInput(""); setPwError(false); pendingAction.current = null; }}
+        okText="Xác nhận"
+        cancelText="Hủy"
+        width={380}
+        centered
+        destroyOnHidden
+      >
+        <div style={{ padding: "12px 0" }}>
+          <p style={{ marginBottom: 12, fontSize: 13, color: "#6b7280" }}>
+            Cột "Tình trạng báo lỗi" được bảo vệ. Vui lòng nhập mật khẩu để tiếp tục.
+          </p>
+          <Input.Password
+            placeholder="Nhập mật khẩu..."
+            value={pwInput}
+            onChange={e => { setPwInput(e.target.value); setPwError(false); }}
+            onPressEnter={handlePwSubmit}
+            status={pwError ? "error" : undefined}
+            autoFocus
+            style={{ borderRadius: 8 }}
+          />
+          {pwError && (
+            <p style={{ color: "#dc2626", fontSize: 12, marginTop: 6, marginBottom: 0 }}>
+              Mật khẩu không đúng. Vui lòng thử lại.
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 });
