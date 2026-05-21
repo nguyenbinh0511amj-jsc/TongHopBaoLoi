@@ -313,7 +313,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "#f8fafc" }}>
 
       {/* ── Summary Cards ── */}
-      <div style={{ padding: "12px 16px", display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <div className="summary-cards" style={{ padding: "12px 16px", display: "flex", gap: 12, flexWrap: "wrap" }}>
         {/* Total card */}
         <SummaryCard
           title="Tổng số" value={stats.total} icon="📊"
@@ -340,7 +340,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       </div>
 
       {/* ── Charts Section ── */}
-      <div style={{ padding: "0 16px 12px", display: "flex", gap: 16, flexWrap: "wrap" }}>
+      <div className="charts-section" style={{ padding: "0 16px 12px", display: "flex", gap: 16, flexWrap: "wrap" }}>
         {/* Donut: Tình trạng */}
         <div style={{
           flex: 1, minWidth: 280, background: "#fff", borderRadius: 12, padding: 20,
@@ -370,7 +370,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       </div>
 
       {/* ── Filter toolbar ── */}
-      <div style={{
+      <div className="filter-toolbar" style={{
         display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
         padding: "6px 16px", background: "#fff", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0",
       }}>
