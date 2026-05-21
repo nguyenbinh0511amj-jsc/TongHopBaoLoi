@@ -612,8 +612,9 @@ export default function TongHopThongKeLoiPage() {
         const arr = p.value || [];
         if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
         return (
-          <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", alignItems: "center", overflow: "hidden" }}>
-            {arr.map(m => <MaLoiBadge key={m} value={m} />)}
+          <div style={{ display: "flex", gap: 3, alignItems: "center", overflow: "hidden" }} title={arr.join(", ")}>
+            <MaLoiBadge value={arr[0]} />
+            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
           </div>
         );
       },
@@ -628,10 +629,9 @@ export default function TongHopThongKeLoiPage() {
         const arr = p.value || [];
         if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
         return (
-          <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", alignItems: "center", overflow: "hidden" }}>
-            {arr.map(o => (
-              <span key={o} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#f3f4f6", color: "#374151", whiteSpace: "nowrap" }}>{o}</span>
-            ))}
+          <div style={{ display: "flex", gap: 3, alignItems: "center", overflow: "hidden" }} title={arr.join(", ")}>
+            <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#f3f4f6", color: "#374151", whiteSpace: "nowrap" }}>{arr[0]}</span>
+            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
           </div>
         );
       },
@@ -642,9 +642,11 @@ export default function TongHopThongKeLoiPage() {
       renderCell: (p) => {
         if (p.row._type === "child") return <NoiXuLyBadge value={p.row.noi_xu_ly_loi} />;
         const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
         return (
-          <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", justifyContent: "center", overflow: "hidden" }}>
-            {arr.map(v => <NoiXuLyBadge key={v} value={v} />)}
+          <div style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", overflow: "hidden" }} title={arr.join(", ")}>
+            <NoiXuLyBadge value={arr[0]} />
+            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
           </div>
         );
       },
@@ -655,9 +657,11 @@ export default function TongHopThongKeLoiPage() {
       renderCell: (p) => {
         if (p.row._type === "child") return <NoiXuLyBadge value={p.row.noi_phat_sinh_loi} />;
         const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
         return (
-          <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", justifyContent: "center", overflow: "hidden" }}>
-            {arr.map(v => <NoiXuLyBadge key={v} value={v} />)}
+          <div style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", overflow: "hidden" }} title={arr.join(", ")}>
+            <NoiXuLyBadge value={arr[0]} />
+            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
           </div>
         );
       },
@@ -673,10 +677,9 @@ export default function TongHopThongKeLoiPage() {
         const arr = p.value || [];
         if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
         return (
-          <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", justifyContent: "center", overflow: "hidden" }}>
-            {arr.map(v => (
-              <span key={v} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fef3c7", color: "#92400e", whiteSpace: "nowrap" }}>{v}</span>
-            ))}
+          <div style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", overflow: "hidden" }} title={arr.join(", ")}>
+            <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fef3c7", color: "#92400e", whiteSpace: "nowrap" }}>{arr[0]}</span>
+            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
           </div>
         );
       },
