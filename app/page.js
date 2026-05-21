@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useCallback, useDeferredValue, useRef } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DataGrid } from "@mui/x-data-grid";
 import { viVN } from "@mui/x-data-grid/locales";
@@ -213,7 +213,14 @@ export default function TongHopThongKeLoiPage() {
   const [sortModel, setSortModel] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
-  const [activeTab, setActiveTab] = useState("thongke");
+  const [activeTab, setActiveTab] = useState(() => {
+    try { return (typeof window !== 'undefined' && localStorage.getItem('activeTab')) || 'thongke'; }
+    catch { return 'thongke'; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('activeTab', activeTab); } catch {}
+  }, [activeTab]);
 
   const deferredSearch = useDeferredValue(search);
   const deferredMaLoi = useDeferredValue(filterMaLoi);
