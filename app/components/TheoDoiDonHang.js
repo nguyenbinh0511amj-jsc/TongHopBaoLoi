@@ -2,8 +2,8 @@
 import { useState, useMemo, useEffect, forwardRef, useImperativeHandle, useCallback, useDeferredValue, useRef } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { viVN } from "@mui/x-data-grid/locales";
-import { Input, Select, InputNumber, Button, DatePicker, Modal, App as AntApp } from "antd";
-import { SearchOutlined, DownloadOutlined, ClearOutlined, LockOutlined } from "@ant-design/icons";
+import { Input, Select, InputNumber, Button, DatePicker, Modal, App as AntApp, Tooltip } from "antd";
+import { SearchOutlined, DownloadOutlined, ClearOutlined, LockOutlined, SettingOutlined, UnlockOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
@@ -144,7 +144,14 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
 }
 
 /* ════════════════════════════════════════ */
-const EDIT_PASSWORD = "admin123";
+const DEFAULT_PASSWORD = "admin123";
+const PW_LS_KEY = "theodoi_edit_password";
+
+function getSavedPassword() {
+  try {
+    return localStorage.getItem(PW_LS_KEY) || DEFAULT_PASSWORD;
+  } catch { return DEFAULT_PASSWORD; }
+}
 
 const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isFiltering }, ref) {
   const { message } = AntApp.useApp();
@@ -163,6 +170,13 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const [pwError, setPwError] = useState(false);
   const pendingAction = useRef(null);
 
+  /* ── Change password ── */
+  const [showChangePwModal, setShowChangePwModal] = useState(false);
+  const [changePwOld, setChangePwOld] = useState("");
+  const [changePwNew, setChangePwNew] = useState("");
+  const [changePwConfirm, setChangePwConfirm] = useState("");
+  const [changePwError, setChangePwError] = useState("");
+
   const requirePassword = useCallback((action) => {
     if (isUnlocked) {
       action();
@@ -175,7 +189,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   }, [isUnlocked]);
 
   const handlePwSubmit = useCallback(() => {
-    if (pwInput === EDIT_PASSWORD) {
+    if (pwInput === getSavedPassword()) {
       setIsUnlocked(true);
       setShowPwModal(false);
       setPwInput("");
@@ -189,6 +203,32 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
       setPwError(true);
     }
   }, [pwInput, message]);
+
+  const handleChangePwSubmit = useCallback(() => {
+    const currentPw = getSavedPassword();
+    if (changePwOld !== currentPw) {
+      setChangePwError("Mật khẩu cũ không đúng.");
+      return;
+    }
+    if (!changePwNew || changePwNew.length < 4) {
+      setChangePwError("Mật khẩu mới phải có ít nhất 4 ký tự.");
+      return;
+    }
+    if (changePwNew !== changePwConfirm) {
+      setChangePwError("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+    try {
+      localStorage.setItem(PW_LS_KEY, changePwNew);
+    } catch { /* ignore */ }
+    setShowChangePwModal(false);
+    setChangePwOld("");
+    setChangePwNew("");
+    setChangePwConfirm("");
+    setChangePwError("");
+    setIsUnlocked(false);
+    message.success("Đổi mật khẩu thành công!");
+  }, [changePwOld, changePwNew, changePwConfirm, message]);
 
   const deferredSearch = useDeferredValue(search);
 
@@ -549,9 +589,38 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
             >✕ Bỏ lọc</button>
           )}
         </div>
-        <span style={{ fontSize: 11, color: "#94a3b8" }}>
-          Chỉ hiển thị đơn hàng có ≥{minLanLoi} lần báo lỗi
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: "#94a3b8" }}>
+            Chỉ hiển thị đơn hàng có ≥{minLanLoi} lần báo lỗi
+          </span>
+          <div style={{ width: 1, height: 16, background: "#e2e8f0" }} />
+          {isUnlocked ? (
+            <Tooltip title="Đã mở khóa — nhấn để đổi mật khẩu">
+              <Button
+                size="small" type="text"
+                icon={<UnlockOutlined style={{ color: "#059669" }} />}
+                onClick={() => {
+                  setChangePwOld(""); setChangePwNew(""); setChangePwConfirm(""); setChangePwError("");
+                  setShowChangePwModal(true);
+                }}
+                style={{ fontSize: 11, color: "#059669" }}
+              >
+                Đổi mật khẩu
+              </Button>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Nhấn để mở khóa chỉnh sửa">
+              <Button
+                size="small" type="text"
+                icon={<LockOutlined style={{ color: "#d97706" }} />}
+                onClick={() => { setPwInput(""); setPwError(false); setShowPwModal(true); }}
+                style={{ fontSize: 11, color: "#d97706" }}
+              >
+                Mở khóa
+              </Button>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {/* ── DataGrid ── */}
@@ -611,6 +680,61 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
           {pwError && (
             <p style={{ color: "#dc2626", fontSize: 12, marginTop: 6, marginBottom: 0 }}>
               Mật khẩu không đúng. Vui lòng thử lại.
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* ── Change Password Modal ── */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <SettingOutlined style={{ color: "#2563eb" }} />
+            <span>Đổi mật khẩu</span>
+          </div>
+        }
+        open={showChangePwModal}
+        onOk={handleChangePwSubmit}
+        onCancel={() => { setShowChangePwModal(false); setChangePwOld(""); setChangePwNew(""); setChangePwConfirm(""); setChangePwError(""); }}
+        okText="Đổi mật khẩu"
+        cancelText="Hủy"
+        width={400}
+        centered
+        destroyOnHidden
+      >
+        <div style={{ padding: "12px 0", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4, display: "block" }}>Mật khẩu hiện tại</label>
+            <Input.Password
+              placeholder="Nhập mật khẩu hiện tại..."
+              value={changePwOld}
+              onChange={e => { setChangePwOld(e.target.value); setChangePwError(""); }}
+              style={{ borderRadius: 8 }}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4, display: "block" }}>Mật khẩu mới</label>
+            <Input.Password
+              placeholder="Nhập mật khẩu mới (tối thiểu 4 ký tự)..."
+              value={changePwNew}
+              onChange={e => { setChangePwNew(e.target.value); setChangePwError(""); }}
+              style={{ borderRadius: 8 }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4, display: "block" }}>Xác nhận mật khẩu mới</label>
+            <Input.Password
+              placeholder="Nhập lại mật khẩu mới..."
+              value={changePwConfirm}
+              onChange={e => { setChangePwConfirm(e.target.value); setChangePwError(""); }}
+              onPressEnter={handleChangePwSubmit}
+              style={{ borderRadius: 8 }}
+            />
+          </div>
+          {changePwError && (
+            <p style={{ color: "#dc2626", fontSize: 12, margin: 0 }}>
+              {changePwError}
             </p>
           )}
         </div>
