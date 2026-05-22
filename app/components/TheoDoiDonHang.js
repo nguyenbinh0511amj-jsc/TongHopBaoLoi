@@ -41,6 +41,32 @@ function NoiXuLyBadge({ value }) {
   return <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{value}</span>;
 }
 
+/* ── Dãy máy color palette ── */
+const DAY_MAY_COLORS = [
+  { bg: "#dbeafe", color: "#1e40af" },
+  { bg: "#fef3c7", color: "#92400e" },
+  { bg: "#d1fae5", color: "#065f46" },
+  { bg: "#ede9fe", color: "#5b21b6" },
+  { bg: "#fce7f3", color: "#9d174d" },
+  { bg: "#e0f2fe", color: "#0369a1" },
+  { bg: "#fef9c3", color: "#854d0e" },
+  { bg: "#f3e8ff", color: "#7e22ce" },
+  { bg: "#ccfbf1", color: "#115e59" },
+  { bg: "#fee2e2", color: "#991b1b" },
+  { bg: "#e0e7ff", color: "#3730a3" },
+  { bg: "#fef0c7", color: "#78350f" },
+];
+
+function getDayMayColor(val) {
+  if (!val) return DAY_MAY_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < val.length; i++) {
+    hash = ((hash << 5) - hash) + val.charCodeAt(i);
+    hash |= 0;
+  }
+  return DAY_MAY_COLORS[Math.abs(hash) % DAY_MAY_COLORS.length];
+}
+
 /* ── Bộ phận config ── */
 const BO_PHAN_LIST = [
   { key: "PSX", label: "PSX", icon: "🏭", gradient: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)", color: "#92400e", bgLight: "#fffbeb" },
@@ -130,6 +156,7 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
     const orderKdSet = new Set();
     const maLoiCount = new Map();
     const dayMaySet = new Set();
+    const soFileSet = new Set();
 
     for (const e of entries) {
       totalSlLoi += Number(e.sl_loi) || 0;
@@ -137,6 +164,7 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
       if (e.order_kd) orderKdSet.add(e.order_kd);
       if (e.ma_loi) maLoiCount.set(e.ma_loi, (maLoiCount.get(e.ma_loi) || 0) + 1);
       if (e.day_san_xuat_da_gia_cong_tong_hop_loi) dayMaySet.add(e.day_san_xuat_da_gia_cong_tong_hop_loi);
+      if (e._so_file) soFileSet.add(e._so_file);
     }
 
     const maLoiArr = [...maLoiCount.entries()]
@@ -154,6 +182,7 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
       order_kds: [...orderKdSet],
       ma_loi_counts: maLoiArr,
       day_mays: [...dayMaySet],
+      so_files: [...soFileSet],
     });
   }
 
@@ -343,7 +372,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
-      const headers = ["STT", "Tên chi tiết", "Số lần lỗi", "Mã lỗi (số lần)", "Các Order KD", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành"];
+      const headers = ["STT", "Tên chi tiết", "Số file", "Số lần lỗi", "Mã lỗi (số lần)", "Các Order KD", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành"];
 
       for (const bp of BO_PHAN_LIST) {
         const bpRows = allFilteredNoBp.filter(r => r.noi_phat_sinh === bp.key);
@@ -353,6 +382,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
           return [
             i + 1,
             r.ten_chi_tiet,
+            (r.so_files || []).join(", "),
             r.so_lan_loi,
             (r.ma_loi_counts || []).map(m => `${m.code} (${m.count})`).join(", "),
             (r.order_kds || []).join(", "),
@@ -385,6 +415,20 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
           {p.value || "—"}
         </span>
       ),
+    },
+    {
+      field: "so_files", headerName: "Số file", minWidth: 120, width: 120, align: "center", headerAlign: "center",
+      sortable: false,
+      renderCell: (p) => {
+        const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        return (
+          <div style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", overflow: "hidden" }} title={arr.join(", ")}>
+            <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#e0f2fe", color: "#0369a1", whiteSpace: "nowrap" }}>{arr[0]}</span>
+            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
+          </div>
+        );
+      },
     },
     {
       field: "noi_phat_sinh", headerName: "Nơi phát sinh", minWidth: 140, width: 140, align: "center", headerAlign: "center",
@@ -433,9 +477,10 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
         return (
           <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", justifyContent: "center", overflow: "hidden" }}>
-            {arr.map(v => (
-              <span key={v} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fef3c7", color: "#92400e", whiteSpace: "nowrap" }}>{v}</span>
-            ))}
+            {arr.map(v => {
+              const c = getDayMayColor(v);
+              return <span key={v} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: c.bg, color: c.color, whiteSpace: "nowrap" }}>{v}</span>;
+            })}
           </div>
         );
       },

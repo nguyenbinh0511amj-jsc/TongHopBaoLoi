@@ -19,6 +19,32 @@ const BO_PHAN_CONFIG = {
   "Phôi": { label: "Phôi", icon: "📦", color: "#9d174d", bg: "#fdf2f8", gradient: "linear-gradient(135deg, #f472b6, #ec4899)" },
 };
 
+/* ── Dãy máy color palette ── */
+const DAY_MAY_COLORS = [
+  { bg: "#dbeafe", color: "#1e40af" },
+  { bg: "#fef3c7", color: "#92400e" },
+  { bg: "#d1fae5", color: "#065f46" },
+  { bg: "#ede9fe", color: "#5b21b6" },
+  { bg: "#fce7f3", color: "#9d174d" },
+  { bg: "#e0f2fe", color: "#0369a1" },
+  { bg: "#fef9c3", color: "#854d0e" },
+  { bg: "#f3e8ff", color: "#7e22ce" },
+  { bg: "#ccfbf1", color: "#115e59" },
+  { bg: "#fee2e2", color: "#991b1b" },
+  { bg: "#e0e7ff", color: "#3730a3" },
+  { bg: "#fef0c7", color: "#78350f" },
+];
+
+function getDayMayColor(val) {
+  if (!val) return DAY_MAY_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < val.length; i++) {
+    hash = ((hash << 5) - hash) + val.charCodeAt(i);
+    hash |= 0;
+  }
+  return DAY_MAY_COLORS[Math.abs(hash) % DAY_MAY_COLORS.length];
+}
+
 /* ════════════════════════════════════════ */
 export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const [statusData, setStatusData] = useState({});
@@ -76,6 +102,11 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         }
       }
 
+      // Extract unique so_file values
+      const soFiles = matchedRow?.ngay_nhans
+        ? [...new Set(matchedRow.ngay_nhans.map(n => n.so_file).filter(Boolean))]
+        : [];
+
       result.push({
         id: idx++,
         key,
@@ -88,6 +119,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         trang_thai_thoi_han: trangThaiThoiHan,
         so_lan_loi: matchedRow?.so_lan_loi || null,
         day_mays: matchedRow?.day_mays || [],
+        so_files: soFiles,
         _searchText: `${tenChiTiet} ${noiPhatSinh}`.toLowerCase(),
       });
     }
@@ -151,10 +183,11 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
-      const headers = ["STT", "Tên chi tiết", "Vị trí", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành", "Trạng thái thời hạn"];
+      const headers = ["STT", "Tên chi tiết", "Số file", "Vị trí", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành", "Trạng thái thời hạn"];
       const data = filteredRows.map((r, i) => [
         i + 1,
         r.ten_chi_tiet,
+        (r.so_files || []).join(", "),
         r.noi_phat_sinh,
         (r.day_mays || []).join(", "),
         r.tinh_trang,
@@ -183,6 +216,20 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       ),
     },
     {
+      field: "so_files", headerName: "Số file", minWidth: 120, width: 120, align: "center", headerAlign: "center",
+      sortable: false,
+      renderCell: (p) => {
+        const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#d1d5db" }}>—</span>;
+        return (
+          <div style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", overflow: "hidden" }} title={arr.join(", ")}>
+            <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#e0f2fe", color: "#0369a1", whiteSpace: "nowrap" }}>{arr[0]}</span>
+            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
+          </div>
+        );
+      },
+    },
+    {
       field: "day_mays", headerName: "Dãy máy gia công", minWidth: 150, width: 150, align: "center", headerAlign: "center",
       sortable: false,
       renderCell: (p) => {
@@ -190,9 +237,10 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         if (!arr.length) return <span style={{ color: "#d1d5db" }}>—</span>;
         return (
           <div style={{ display: "flex", gap: 3, flexWrap: "nowrap", justifyContent: "center", overflow: "hidden" }}>
-            {arr.map(v => (
-              <span key={v} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fef3c7", color: "#92400e", whiteSpace: "nowrap" }}>{v}</span>
-            ))}
+            {arr.map(v => {
+              const c = getDayMayColor(v);
+              return <span key={v} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: c.bg, color: c.color, whiteSpace: "nowrap" }}>{v}</span>;
+            })}
           </div>
         );
       },

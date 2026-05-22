@@ -99,14 +99,40 @@ function TrangThaiBadge({ value }) {
   return <span style={{ padding: "2px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600, background: bg, color, whiteSpace: "nowrap" }}>{value}</span>;
 }
 
+/* ── Dãy máy color palette ── */
+const DAY_MAY_COLORS = [
+  { bg: "#dbeafe", color: "#1e40af" },
+  { bg: "#fef3c7", color: "#92400e" },
+  { bg: "#d1fae5", color: "#065f46" },
+  { bg: "#ede9fe", color: "#5b21b6" },
+  { bg: "#fce7f3", color: "#9d174d" },
+  { bg: "#e0f2fe", color: "#0369a1" },
+  { bg: "#fef9c3", color: "#854d0e" },
+  { bg: "#f3e8ff", color: "#7e22ce" },
+  { bg: "#ccfbf1", color: "#115e59" },
+  { bg: "#fee2e2", color: "#991b1b" },
+  { bg: "#e0e7ff", color: "#3730a3" },
+  { bg: "#fef0c7", color: "#78350f" },
+];
+
+function getDayMayColor(val) {
+  if (!val) return DAY_MAY_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < val.length; i++) {
+    hash = ((hash << 5) - hash) + val.charCodeAt(i);
+    hash |= 0;
+  }
+  return DAY_MAY_COLORS[Math.abs(hash) % DAY_MAY_COLORS.length];
+}
+
 /* ── Process: group by ten_chi_tiet, aggregate errors, lookup ngay_nhan ── */
 function processData(thongKeLoi, soGiaoNhan) {
-  // Build lookup: order_kd → ngay_nhan from so_giao_nhan (one-pass Map)
-  const ngayNhanMap = new Map();
+  // Build lookup: order_kd → { ngay_nhan, so_file } from so_giao_nhan (one-pass Map)
+  const sgnLookup = new Map();
   for (let i = 0; i < soGiaoNhan.length; i++) {
     const r = soGiaoNhan[i];
     if (r.order_kd && r.ngay_nhan) {
-      ngayNhanMap.set(r.order_kd, r.ngay_nhan);
+      sgnLookup.set(r.order_kd, { ngay_nhan: r.ngay_nhan, so_file: r.so_file || "" });
     }
   }
 
@@ -117,16 +143,18 @@ function processData(thongKeLoi, soGiaoNhan) {
     const key = (item.ten_chi_tiet || "").trim();
     if (!key) continue;
 
-    // Lookup ngay_nhan early — skip entries without it
-    const entryNgayNhan = item.order_kd ? (ngayNhanMap.get(item.order_kd) || "") : "";
+    // Lookup ngay_nhan + so_file early — skip entries without ngay_nhan
+    const sgnEntry = item.order_kd ? (sgnLookup.get(item.order_kd) || null) : null;
+    const entryNgayNhan = sgnEntry ? sgnEntry.ngay_nhan : "";
     if (!entryNgayNhan) continue;
+    const entrySoFile = sgnEntry ? sgnEntry.so_file : "";
 
     let g = groups.get(key);
     if (!g) {
       g = { ten_chi_tiet: key, entries: [] };
       groups.set(key, g);
     }
-    g.entries.push({ ...item, _ngay_nhan: entryNgayNhan });
+    g.entries.push({ ...item, _ngay_nhan: entryNgayNhan, _so_file: entrySoFile });
   }
 
   // Build result array
@@ -159,7 +187,7 @@ function processData(thongKeLoi, soGiaoNhan) {
         orderKdSet.add(e.order_kd);
         if (e._ngay_nhan && !seenOrder.has(e.order_kd)) {
           seenOrder.add(e.order_kd);
-          ngayNhans.push({ order_kd: e.order_kd, ngay_nhan: e._ngay_nhan });
+          ngayNhans.push({ order_kd: e.order_kd, ngay_nhan: e._ngay_nhan, so_file: e._so_file || "" });
         }
       }
       if (e.ma_loi) maLoiSet.add(e.ma_loi);
@@ -361,7 +389,7 @@ export default function TongHopThongKeLoiPage() {
         filteredEntries.forEach(e => {
           if (e.order_kd && e._ngay_nhan && !seen.has(e.order_kd)) {
             seen.add(e.order_kd);
-            ngayNhans.push({ order_kd: e.order_kd, ngay_nhan: e._ngay_nhan });
+            ngayNhans.push({ order_kd: e.order_kd, ngay_nhan: e._ngay_nhan, so_file: e._so_file || "" });
           }
         });
 
@@ -450,6 +478,7 @@ export default function TongHopThongKeLoiPage() {
             ho_va_ten: entry.ho_va_ten || "",
             trang_thai: entry.trang_thai || "",
             ngay_nhan: entry._ngay_nhan || "",
+            so_file: entry._so_file || "",
             da_co_xac_nhan: entry.da_co_xac_nhan || "",
           });
         });
@@ -464,10 +493,11 @@ export default function TongHopThongKeLoiPage() {
       const wb = XLSX.utils.book_new();
 
       // ── Sheet 1: Tổng hợp (grouped summary) ──
-      const summaryHeaders = ["STT", "Tên chi tiết", "Số lần lỗi", "Tổng SL lỗi", "SL trả", "Lỗi tồn", "Các Order KD", "Các mã lỗi", "Nơi xử lý", "Dãy máy gia công", "Ngày nhận hàng"];
+      const summaryHeaders = ["STT", "Tên chi tiết", "Số file", "Số lần lỗi", "Tổng SL lỗi", "SL trả", "Lỗi tồn", "Các Order KD", "Các mã lỗi", "Nơi xử lý", "Dãy máy gia công", "Ngày nhận hàng"];
       const summaryData = rows.map((r, i) => [
         i + 1,
         r.ten_chi_tiet,
+        [...new Set(r.ngay_nhans.map(n => n.so_file).filter(Boolean))].join(", "),
         r.so_lan_loi,
         r.tong_sl_loi,
         r.tong_sl_tra,
@@ -486,7 +516,7 @@ export default function TongHopThongKeLoiPage() {
       XLSX.utils.book_append_sheet(wb, ws1, "Tổng hợp");
 
       // ── Sheet 2: Chi tiết (all individual entries) ──
-      const detailHeaders = ["STT", "Tên chi tiết", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Dãy máy gia công", "Ngày nhận hàng", "Trạng thái"];
+      const detailHeaders = ["STT", "Tên chi tiết", "Số file", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Dãy máy gia công", "Ngày nhận hàng", "Trạng thái"];
       const detailData = [];
       let stt = 0;
       rows.forEach(r => {
@@ -495,6 +525,7 @@ export default function TongHopThongKeLoiPage() {
           detailData.push([
             stt,
             r.ten_chi_tiet,
+            e._so_file || "",
             e.order_kd || "",
             e.ma_loi || "",
             e.noi_dung_loi || "",
@@ -563,6 +594,25 @@ export default function TongHopThongKeLoiPage() {
         }
         return (
           <span style={{ color: "#1e40af", fontWeight: 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.value || "—"}</span>
+        );
+      },
+    },
+    {
+      field: "so_files", headerName: "Số file", minWidth: 120, width: 120, align: "center", headerAlign: "center",
+      sortable: false,
+      renderCell: (p) => {
+        if (p.row._type === "child") {
+          const val = p.row.so_file;
+          return <span style={{ fontSize: 12, color: val ? "#374151" : "#d1d5db" }}>{val || "—"}</span>;
+        }
+        const arr = p.row.ngay_nhans || [];
+        const soFiles = [...new Set(arr.map(n => n.so_file).filter(Boolean))];
+        if (!soFiles.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        return (
+          <div style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", overflow: "hidden" }} title={soFiles.join(", ")}>
+            <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#e0f2fe", color: "#0369a1", whiteSpace: "nowrap" }}>{soFiles[0]}</span>
+            {soFiles.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{soFiles.length - 1}</span>}
+          </div>
         );
       },
     },
@@ -673,18 +723,23 @@ export default function TongHopThongKeLoiPage() {
       renderCell: (p) => {
         if (p.row._type === "child") {
           const val = p.row.day_san_xuat_da_gia_cong_tong_hop_loi;
-          return <span style={{ fontSize: 12, color: val ? "#374151" : "#d1d5db" }}>{val || "—"}</span>;
+          if (!val) return <span style={{ color: "#d1d5db" }}>—</span>;
+          const c = getDayMayColor(val);
+          return <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: c.bg, color: c.color, whiteSpace: "nowrap" }}>{val}</span>;
         }
         const arr = p.value || [];
         if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
         return (
           <div style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", overflow: "hidden" }} title={arr.join(", ")}>
-            <span style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fef3c7", color: "#92400e", whiteSpace: "nowrap" }}>{arr[0]}</span>
-            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
+            {arr.map(v => {
+              const c = getDayMayColor(v);
+              return <span key={v} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: c.bg, color: c.color, whiteSpace: "nowrap" }}>{v}</span>;
+            })}
           </div>
         );
       },
     },
+
     {
       field: "ngay_nhans", headerName: "Ngày nhận hàng", minWidth: 180, width: 180,
       sortable: false,
