@@ -53,6 +53,17 @@ async function fetchSoGiaoNhan() {
   return json.rows || [];
 }
 
+/* ── Combined fetch: 1 request for both tables ── */
+async function fetchAllData() {
+  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan");
+  const json = await res.json();
+  if (!json.ok) throw new Error("Fetch failed");
+  return {
+    loi: json.results?.tong_hop_loi || [],
+    sgn: json.results?.so_giao_nhan || [],
+  };
+}
+
 /* ── Force invalidate server cache + refetch ── */
 async function invalidateAndFetch(table) {
   const res = await fetch(`/api/appsheet?table=${table}&invalidate=1`);
@@ -341,26 +352,18 @@ export default function TongHopThongKeLoiPage() {
   const deferredNgayBaoLoiFrom = useDeferredValue(ngayBaoLoiFrom);
   const deferredNgayBaoLoiTo = useDeferredValue(ngayBaoLoiTo);
 
-  /* ── Fetch both tables — lower staleTime for faster updates ── */
-  const { data: rawLoi = [], isLoading: loadingLoi, isRefetching: refetchingLoi } = useQuery({
-    queryKey: ["tong_hop_loi"],
-    queryFn: fetchThongKeLoi,
-    staleTime: 30 * 1000,       // 30s — data stale nhanh hơn
+  /* ── Fetch both tables in a single request ── */
+  const { data: allData, isLoading, isRefetching: refetchingLoi } = useQuery({
+    queryKey: ["all_data"],
+    queryFn: fetchAllData,
+    staleTime: 20 * 1000,       // 20s — data stale nhanh hơn
     gcTime: 5 * 60 * 1000,
-    refetchInterval: 60 * 1000, // 1 phút auto-refetch
-    refetchOnWindowFocus: "always", // Luôn refetch khi quay lại tab
-  });
-
-  const { data: rawSGN = [], isLoading: loadingSGN } = useQuery({
-    queryKey: ["so_giao_nhan"],
-    queryFn: fetchSoGiaoNhan,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchInterval: 60 * 1000,
+    refetchInterval: 45 * 1000, // 45s auto-refetch
     refetchOnWindowFocus: "always",
   });
 
-  const isLoading = loadingLoi || loadingSGN;
+  const rawLoi = allData?.loi || [];
+  const rawSGN = allData?.sgn || [];
 
   /* ── Smart refresh: invalidate server cache + refetch ── */
   const handleRefresh = useCallback(async () => {
@@ -371,14 +374,11 @@ export default function TongHopThongKeLoiPage() {
         invalidateAndFetch("tong_hop_loi"),
         invalidateAndFetch("so_giao_nhan"),
       ]);
-      // Update React Query cache directly — no extra fetch needed
-      queryClient.setQueryData(["tong_hop_loi"], loiData);
-      queryClient.setQueryData(["so_giao_nhan"], sgnData);
+      // Update React Query cache directly
+      queryClient.setQueryData(["all_data"], { loi: loiData, sgn: sgnData });
     } catch (err) {
       console.error("Refresh failed:", err);
-      // Fallback: just invalidate React Query cache
-      queryClient.invalidateQueries({ queryKey: ["tong_hop_loi"] });
-      queryClient.invalidateQueries({ queryKey: ["so_giao_nhan"] });
+      queryClient.invalidateQueries({ queryKey: ["all_data"] });
     } finally {
       setIsRefreshing(false);
     }

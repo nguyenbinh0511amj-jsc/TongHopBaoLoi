@@ -106,12 +106,30 @@ const ALL_TABLES = [
 function warmUpAll() {
   if (warmedUp) return;
   warmedUp = true;
-  // Stagger requests to avoid overwhelming AppSheet
-  ALL_TABLES.forEach((t, i) => {
-    setTimeout(() => {
-      if (!cache.has(t)) backgroundRefresh(t);
-    }, i * 500); // 500ms apart
+  // Fetch all tables in parallel — no delay
+  ALL_TABLES.forEach(t => {
+    if (!cache.has(t)) backgroundRefresh(t);
   });
+}
+
+// Fetch multiple tables in parallel, return combined result
+async function fetchMultipleTables(tables) {
+  const results = {};
+  await Promise.all(tables.map(async (t) => {
+    const entry = getCacheEntry(t);
+    if (entry) {
+      // Return cache, refresh in background if stale
+      if (!isFresh(t)) backgroundRefresh(t);
+      results[t] = entry.data;
+    } else {
+      // No cache — fetch synchronously
+      const data = await fetchFromAppSheet(t);
+      const cleaned = cleanRows(data);
+      if (Array.isArray(cleaned)) setCache(t, cleaned);
+      results[t] = cleaned;
+    }
+  }));
+  return results;
 }
 
 /**
@@ -132,6 +150,15 @@ export async function GET(request) {
 
     if (searchParams.get("tables") === "1") {
       return NextResponse.json({ status: "ok", appId: APP_ID });
+    }
+
+    // ── Combined multi-table fetch: ?multi=tong_hop_loi,so_giao_nhan ──
+    const multi = searchParams.get("multi");
+    if (multi) {
+      warmUpAll();
+      const tables = multi.split(",").map(t => t.trim()).filter(Boolean);
+      const results = await fetchMultipleTables(tables);
+      return NextResponse.json({ ok: true, results });
     }
 
     if (!table) {
