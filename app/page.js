@@ -934,9 +934,9 @@ export default function TongHopThongKeLoiPage() {
   const activeFilterCount = [filterMaLoi, filterTenChiTiet, filterNoiXuLy, filterNoiPhatSinh, ngayNhanFrom, ngayNhanTo].filter(Boolean).length;
 
   const mainTabs = [
-    { key: "thongke", label: "Thống kê báo lỗi", color: "#1e40af", border: "#2563eb", bg: "#eff6ff" },
-    { key: "theodoi", label: "Theo dõi đơn hàng cần báo lỗi", color: "#b45309", border: "#d97706", bg: "#fffbeb" },
-    { key: "baocao", label: "Báo cáo tình trạng", color: "#7c3aed", border: "#8b5cf6", bg: "#f5f3ff" },
+    { key: "thongke", label: "Thống kê báo lỗi", shortLabel: "Thống kê", icon: "📊", color: "#fff", colorInactive: "#1e40af", bg: "linear-gradient(135deg, #2563eb, #1d4ed8)", bgInactive: "#dbeafe", border: "#2563eb", shadow: "0 2px 8px rgba(37,99,235,0.35)" },
+    { key: "theodoi", label: "Theo dõi đơn hàng cần báo lỗi", shortLabel: "Theo dõi", icon: "📋", color: "#fff", colorInactive: "#b45309", bg: "linear-gradient(135deg, #d97706, #b45309)", bgInactive: "#fef3c7", border: "#d97706", shadow: "0 2px 8px rgba(217,119,6,0.35)" },
+    { key: "baocao", label: "Báo cáo tình trạng", shortLabel: "Báo cáo", icon: "📈", color: "#fff", colorInactive: "#7c3aed", bg: "linear-gradient(135deg, #8b5cf6, #7c3aed)", bgInactive: "#ede9fe", border: "#8b5cf6", shadow: "0 2px 8px rgba(139,92,246,0.35)" },
   ];
 
   return (
@@ -944,9 +944,9 @@ export default function TongHopThongKeLoiPage() {
       {/* Tab bar */}
       <div className="tab-bar" style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 16px", background: "#fff", borderBottom: "1px solid #e5e7eb",
+        padding: "8px 16px 0", background: "#f8fafc", borderBottom: "1px solid #e5e7eb",
       }}>
-        <div className="tab-list" style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        <div className="tab-list" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {mainTabs.map(tab => {
             const isActive = activeTab === tab.key;
             return (
@@ -955,20 +955,25 @@ export default function TongHopThongKeLoiPage() {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 style={{
-                  padding: "10px 20px",
+                  padding: isActive ? "10px 22px" : "9px 18px",
                   fontSize: 14,
-                  fontWeight: isActive ? 700 : 500,
-                  color: isActive ? tab.color : "#9ca3af",
-                  background: isActive ? tab.bg : "transparent",
-                  border: "none",
+                  fontWeight: isActive ? 700 : 600,
+                  color: isActive ? tab.color : tab.colorInactive,
+                  background: isActive ? tab.bg : tab.bgInactive,
+                  border: isActive ? "none" : `1.5px solid ${tab.border}33`,
                   borderBottom: isActive ? `3px solid ${tab.border}` : "3px solid transparent",
-                  borderRadius: isActive ? "6px 6px 0 0" : 0,
+                  borderRadius: "8px 8px 0 0",
                   cursor: "pointer",
-                  transition: "all 0.15s",
+                  transition: "all 0.2s ease",
                   whiteSpace: "nowrap",
+                  boxShadow: isActive ? tab.shadow : "none",
+                  transform: isActive ? "translateY(-1px)" : "none",
+                  letterSpacing: isActive ? "0.02em" : "0",
                 }}
               >
-                {tab.label}
+                <span style={{ marginRight: 6 }}>{tab.icon}</span>
+                <span className="tab-label-full">{tab.label}</span>
+                <span className="tab-label-short">{tab.shortLabel}</span>
               </button>
             );
           })}
@@ -980,6 +985,7 @@ export default function TongHopThongKeLoiPage() {
       </div>
 
       {/* Content area */}
+      <div key={activeTab} className="tab-content-enter" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {activeTab === "thongke" ? (
         <>
           {/* Stats + Export for tab 1 */}
@@ -1176,6 +1182,7 @@ export default function TongHopThongKeLoiPage() {
         /* Báo cáo tình trạng */
         <BaoCaoTinhTrang rows={processed} />
       )}
+      </div>
 
       {/* ── Password Modal for Thống kê ── */}
       <Modal

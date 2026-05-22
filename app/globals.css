@@ -57,3 +57,32 @@ select option {
 .animate-slide-in {
   animation: slideIn 0.25s ease-out;
 }
+
+/* ── Tab content transition ── */
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.tab-content-enter {
+  animation: tabFadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Tab button hover effects ── */
+.tab-btn {
+  position: relative;
+  overflow: hidden;
+}
+.tab-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px) !important;
+}
+.tab-btn:active {
+  transform: translateY(0) !important;
+  filter: brightness(0.96);
+}

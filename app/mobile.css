@@ -3,6 +3,14 @@
    Import vào globals.css: @import "./mobile.css";
    ═══════════════════════════════════════════════════════ */
 
+/* ── Tab labels: mặc định hiện full, ẩn short ── */
+.tab-label-short {
+  display: none;
+}
+.tab-label-full {
+  display: inline;
+}
+
 /* ── Page Container ── */
 .page-container {
   max-width: 100%;
@@ -51,7 +59,7 @@
 
   /* ── Tab Bar: cuộn ngang, text nhỏ hơn ── */
   .tab-bar {
-    padding: 0 4px !important;
+    padding: 4px 4px 0 !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -60,13 +68,20 @@
     display: none;
   }
   .tab-bar .tab-list {
-    gap: 0 !important;
+    gap: 4px !important;
   }
   .tab-bar .tab-btn {
-    padding: 7px 10px !important;
+    padding: 7px 12px !important;
     font-size: 12px !important;
     white-space: nowrap;
     flex-shrink: 0;
+  }
+  /* Hiện tên ngắn, ẩn tên dài trên tablet */
+  .tab-label-full {
+    display: none !important;
+  }
+  .tab-label-short {
+    display: inline !important;
   }
 
   /* ── Stats row (Tab 1): compact ── */
@@ -367,8 +382,11 @@
   }
 
   /* ── Tab bar: smaller ── */
+  .tab-bar .tab-list {
+    gap: 3px !important;
+  }
   .tab-bar .tab-btn {
-    padding: 6px 8px !important;
+    padding: 6px 10px !important;
     font-size: 11px !important;
   }
 
