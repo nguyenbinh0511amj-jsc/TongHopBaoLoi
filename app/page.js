@@ -450,6 +450,7 @@ export default function TongHopThongKeLoiPage() {
             ho_va_ten: entry.ho_va_ten || "",
             trang_thai: entry.trang_thai || "",
             ngay_nhan: entry._ngay_nhan || "",
+            da_co_xac_nhan: entry.da_co_xac_nhan || "",
           });
         });
       }
@@ -723,6 +724,40 @@ export default function TongHopThongKeLoiPage() {
       renderCell: (p) => {
         if (p.row._type !== "child") return null;
         return <TrangThaiBadge value={p.row.trang_thai} />;
+      },
+    },
+    {
+      field: "_childDaXacNhan", headerName: "Đã xác nhận", minWidth: 130, width: 130, align: "center", headerAlign: "center",
+      sortable: false,
+      renderCell: (p) => {
+        if (p.row._type === "child") {
+          const val = p.row.da_co_xac_nhan;
+          if (!val) return <span style={{ color: "#bfbfbf" }}>—</span>;
+          const isConfirmed = val === "Y" || val === "Có" || val === "true" || val === "1" || val === "Yes";
+          return (
+            <span style={{
+              padding: "2px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600,
+              background: isConfirmed ? "#d1fae5" : "#fee2e2",
+              color: isConfirmed ? "#065f46" : "#991b1b",
+              whiteSpace: "nowrap",
+            }}>{val}</span>
+          );
+        }
+        // Parent row: show summary count
+        const entries = p.row.entries || [];
+        if (!entries.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        const confirmed = entries.filter(e => {
+          const v = e.da_co_xac_nhan;
+          return v === "Y" || v === "Có" || v === "true" || v === "1" || v === "Yes";
+        }).length;
+        if (confirmed === 0) return <span style={{ color: "#bfbfbf" }}>0/{entries.length}</span>;
+        return (
+          <span style={{
+            padding: "2px 10px", borderRadius: 12, fontSize: 11, fontWeight: 700,
+            background: confirmed === entries.length ? "#d1fae5" : "#fef3c7",
+            color: confirmed === entries.length ? "#065f46" : "#92400e",
+          }}>{confirmed}/{entries.length}</span>
+        );
       },
     },
   ], [expandedRows, toggleExpand]);

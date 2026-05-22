@@ -68,6 +68,12 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
     });
   });
 
+  // 1.5. Only keep entries with da_co_xac_nhan = FALSE
+  allEntries = allEntries.filter(e => {
+    const v = (e.da_co_xac_nhan || "").toString().trim().toUpperCase();
+    return v === "FALSE" || v === "N" || v === "0" || v === "";
+  });
+
   // 2. Filter entries BEFORE grouping
   if (boPhan && boPhan !== "all") {
     allEntries = allEntries.filter(e => e.noi_phat_sinh_loi === boPhan);
