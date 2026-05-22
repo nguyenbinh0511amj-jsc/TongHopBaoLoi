@@ -3,11 +3,12 @@ import { useState, useMemo, useCallback, useDeferredValue, useRef, useEffect } f
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DataGrid } from "@mui/x-data-grid";
 import { viVN } from "@mui/x-data-grid/locales";
-import { Input, Button, Select, Space, Spin, Tag, InputNumber, DatePicker } from "antd";
+import { Input, Button, Select, Space, Spin, Tag, InputNumber, DatePicker, Modal, Checkbox, Tooltip, App as AntApp } from "antd";
 import {
   ReloadOutlined, DownloadOutlined, SearchOutlined, ClearOutlined,
   CaretRightOutlined, CaretDownOutlined,
   FilterOutlined, UnorderedListOutlined, AppstoreOutlined,
+  LockOutlined, UnlockOutlined,
 } from "@ant-design/icons";
 import TheoDoiDonHang from "./components/TheoDoiDonHang";
 import BaoCaoTinhTrang from "./components/BaoCaoTinhTrang";
@@ -230,8 +231,19 @@ function processData(thongKeLoi, soGiaoNhan) {
   return result;
 }
 
+/* ── Password protection (shared with TheoDoiDonHang) ── */
+const DEFAULT_PASSWORD = "admin123";
+const PW_LS_KEY = "theodoi_edit_password";
+
+function getSavedPassword() {
+  try {
+    return localStorage.getItem(PW_LS_KEY) || DEFAULT_PASSWORD;
+  } catch { return DEFAULT_PASSWORD; }
+}
+
 /* ════════════════════════════════════════ */
 export default function TongHopThongKeLoiPage() {
+  const { message } = AntApp.useApp();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filterMaLoi, setFilterMaLoi] = useState(null);
@@ -251,6 +263,68 @@ export default function TongHopThongKeLoiPage() {
     try { return (typeof window !== 'undefined' && localStorage.getItem('activeTab')) || 'thongke'; }
     catch { return 'thongke'; }
   });
+
+  /* ── Password protection for "Loại bỏ" column ── */
+  const [isUnlockedThongKe, setIsUnlockedThongKe] = useState(false);
+  const [showPwModalThongKe, setShowPwModalThongKe] = useState(false);
+  const [pwInputThongKe, setPwInputThongKe] = useState("");
+  const [pwErrorThongKe, setPwErrorThongKe] = useState(false);
+  const pendingActionThongKe = useRef(null);
+
+  /* ── Status data for loai_bo ── */
+  const [statusDataThongKe, setStatusDataThongKe] = useState({});
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch("/api/status");
+        const json = await res.json();
+        if (json.ok && json.data) setStatusDataThongKe(json.data);
+      } catch { /* ignore */ }
+    };
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const updateStatusThongKe = useCallback((rowKey, field, value) => {
+    setStatusDataThongKe(prev => {
+      const next = { ...prev, [rowKey]: { ...(prev[rowKey] || {}), [field]: value } };
+      return next;
+    });
+    fetch("/api/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: rowKey, field, value }),
+    }).catch(() => { /* ignore */ });
+  }, []);
+
+  const requirePasswordThongKe = useCallback((action) => {
+    if (isUnlockedThongKe) {
+      action();
+      return;
+    }
+    pendingActionThongKe.current = action;
+    setPwInputThongKe("");
+    setPwErrorThongKe(false);
+    setShowPwModalThongKe(true);
+  }, [isUnlockedThongKe]);
+
+  const handlePwSubmitThongKe = useCallback(() => {
+    if (pwInputThongKe === getSavedPassword()) {
+      setIsUnlockedThongKe(true);
+      setShowPwModalThongKe(false);
+      setPwInputThongKe("");
+      setPwErrorThongKe(false);
+      message.success("Đã mở khóa! Bạn có thể sử dụng chức năng Loại bỏ.");
+      if (pendingActionThongKe.current) {
+        pendingActionThongKe.current();
+        pendingActionThongKe.current = null;
+      }
+    } else {
+      setPwErrorThongKe(true);
+    }
+  }, [pwInputThongKe, message]);
 
   useEffect(() => {
     try { localStorage.setItem('activeTab', activeTab); } catch {}
@@ -493,21 +567,26 @@ export default function TongHopThongKeLoiPage() {
       const wb = XLSX.utils.book_new();
 
       // ── Sheet 1: Tổng hợp (grouped summary) ──
-      const summaryHeaders = ["STT", "Tên chi tiết", "Số file", "Số lần lỗi", "Tổng SL lỗi", "SL trả", "Lỗi tồn", "Các Order KD", "Các mã lỗi", "Nơi xử lý", "Dãy máy gia công", "Ngày nhận hàng"];
-      const summaryData = rows.map((r, i) => [
-        i + 1,
-        r.ten_chi_tiet,
-        [...new Set(r.ngay_nhans.map(n => n.so_file).filter(Boolean))].join(", "),
-        r.so_lan_loi,
-        r.tong_sl_loi,
-        r.tong_sl_tra,
-        r.loi_ton,
-        r.order_kds.join(", "),
-        r.ma_lois.join(", "),
-        r.noi_xu_lys.join(", "),
-        (r.day_mays || []).join(", "),
-        r.ngay_nhans.map(n => `${n.order_kd}: ${toVNDate(n.ngay_nhan)}`).join("; "),
-      ]);
+      const summaryHeaders = ["STT", "Tên chi tiết", "Số file", "Số lần lỗi", "Tổng SL lỗi", "SL trả", "Lỗi tồn", "Các Order KD", "Các mã lỗi", "Nơi xử lý", "Dãy máy gia công", "Ngày nhận hàng", "Loại bỏ"];
+      const summaryData = rows.map((r, i) => {
+        const noiPS = (r.noi_phat_sinhs || [])[0] || "";
+        const stKey = `${r.ten_chi_tiet}|||${noiPS}`;
+        return [
+          i + 1,
+          r.ten_chi_tiet,
+          [...new Set(r.ngay_nhans.map(n => n.so_file).filter(Boolean))].join(", "),
+          r.so_lan_loi,
+          r.tong_sl_loi,
+          r.tong_sl_tra,
+          r.loi_ton,
+          r.order_kds.join(", "),
+          r.ma_lois.join(", "),
+          r.noi_xu_lys.join(", "),
+          (r.day_mays || []).join(", "),
+          r.ngay_nhans.map(n => `${n.order_kd}: ${toVNDate(n.ngay_nhan)}`).join("; "),
+          statusDataThongKe[stKey]?.loai_bo ? "Có" : "",
+        ];
+      });
       const ws1 = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryData]);
       // Auto width
       ws1["!cols"] = summaryHeaders.map((h, i) => ({
@@ -516,7 +595,7 @@ export default function TongHopThongKeLoiPage() {
       XLSX.utils.book_append_sheet(wb, ws1, "Tổng hợp");
 
       // ── Sheet 2: Chi tiết (all individual entries) ──
-      const detailHeaders = ["STT", "Tên chi tiết", "Số file", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Dãy máy gia công", "Ngày nhận hàng", "Trạng thái"];
+      const detailHeaders = ["STT", "Tên chi tiết", "Số file", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Dãy máy gia công", "Ngày nhận hàng", "Trạng thái", "Đã xác nhận xin xử lý"];
       const detailData = [];
       let stt = 0;
       rows.forEach(r => {
@@ -538,6 +617,7 @@ export default function TongHopThongKeLoiPage() {
             e.day_san_xuat_da_gia_cong_tong_hop_loi || "",
             toVNDate(e._ngay_nhan) || "",
             e.trang_thai || "",
+            e.da_co_xac_nhan || "",
           ]);
         });
       });
@@ -550,7 +630,7 @@ export default function TongHopThongKeLoiPage() {
       // Download
       XLSX.writeFile(wb, `Thong_ke_bao_loi_${new Date().toISOString().slice(0, 10)}.xlsx`);
     });
-  }, [rows]);
+  }, [rows, statusDataThongKe]);
 
   /* ── Clear all filters ── */
   const clearAllFilters = useCallback(() => {
@@ -782,7 +862,7 @@ export default function TongHopThongKeLoiPage() {
       },
     },
     {
-      field: "_childDaXacNhan", headerName: "Đã xác nhận", minWidth: 130, width: 130, align: "center", headerAlign: "center",
+      field: "_childDaXacNhan", headerName: "Đã xác nhận xin xử lý", minWidth: 160, width: 160, align: "center", headerAlign: "center",
       sortable: false,
       renderCell: (p) => {
         if (p.row._type === "child") {
@@ -815,7 +895,40 @@ export default function TongHopThongKeLoiPage() {
         );
       },
     },
-  ], [expandedRows, toggleExpand]);
+    {
+      field: "loai_bo", headerName: "Loại bỏ", minWidth: 90, width: 90, align: "center", headerAlign: "center",
+      sortable: false,
+      renderCell: (p) => {
+        if (p.row._type === "child") return null;
+        // Build key from ten_chi_tiet and first noi_phat_sinh
+        const tenCT = p.row.ten_chi_tiet || "";
+        const noiPS = (p.row.noi_phat_sinhs || [])[0] || "";
+        const key = `${tenCT}|||${noiPS}`;
+        const checked = !!statusDataThongKe[key]?.loai_bo;
+        const handleChange = () => {
+          requirePasswordThongKe(() => {
+            updateStatusThongKe(key, "loai_bo", !checked);
+          });
+        };
+        return (
+          <Tooltip title={isUnlockedThongKe ? (checked ? "Bỏ đánh dấu loại bỏ" : "Đánh dấu loại bỏ") : "🔒 Cần mở khóa"}>
+            <div
+              onClick={(e) => { e.stopPropagation(); handleChange(); }}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: "100%", height: "100%", cursor: "pointer",
+              }}
+            >
+              <Checkbox
+                checked={checked}
+                style={{ pointerEvents: "none" }}
+              />
+            </div>
+          </Tooltip>
+        );
+      },
+    },
+  ], [expandedRows, toggleExpand, statusDataThongKe, requirePasswordThongKe, updateStatusThongKe, isUnlockedThongKe]);
 
   /* ════════════════════ RENDER ════════════════════ */
   const activeFilterCount = [filterMaLoi, filterTenChiTiet, filterNoiXuLy, filterNoiPhatSinh, ngayNhanFrom, ngayNhanTo].filter(Boolean).length;
@@ -930,6 +1043,30 @@ export default function TongHopThongKeLoiPage() {
             <span style={{ fontSize: 12, color: "#6b7280" }}>
               Tổng <b style={{ color: "#111827" }}>{rows.length}</b> bản ghi
             </span>
+            <div style={{ width: 1, height: 16, background: "#e2e8f0" }} />
+            {isUnlockedThongKe ? (
+              <Tooltip title="Đã mở khóa — cột Loại bỏ đang hoạt động">
+                <Button
+                  size="small" type="text"
+                  icon={<UnlockOutlined style={{ color: "#059669" }} />}
+                  onClick={() => setIsUnlockedThongKe(false)}
+                  style={{ fontSize: 11, color: "#059669" }}
+                >
+                  Đã mở khóa
+                </Button>
+              </Tooltip>
+            ) : (
+              <Tooltip title="Nhấn để mở khóa chức năng Loại bỏ">
+                <Button
+                  size="small" type="text"
+                  icon={<LockOutlined style={{ color: "#d97706" }} />}
+                  onClick={() => { setPwInputThongKe(""); setPwErrorThongKe(false); setShowPwModalThongKe(true); }}
+                  style={{ fontSize: 11, color: "#d97706" }}
+                >
+                  Mở khóa
+                </Button>
+              </Tooltip>
+            )}
           </div>
 
           {/* DataGrid - Thống kê báo lỗi */}
@@ -1039,6 +1176,43 @@ export default function TongHopThongKeLoiPage() {
         /* Báo cáo tình trạng */
         <BaoCaoTinhTrang rows={processed} />
       )}
+
+      {/* ── Password Modal for Thống kê ── */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <LockOutlined style={{ color: "#d97706" }} />
+            <span>Nhập mật khẩu để sử dụng</span>
+          </div>
+        }
+        open={showPwModalThongKe}
+        onCancel={() => { setShowPwModalThongKe(false); setPwInputThongKe(""); setPwErrorThongKe(false); pendingActionThongKe.current = null; }}
+        onOk={handlePwSubmitThongKe}
+        okText="Xác nhận"
+        cancelText="Hủy"
+        centered
+        width={380}
+        okButtonProps={{ disabled: !pwInputThongKe }}
+      >
+        <div style={{ padding: "12px 0" }}>
+          <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 12 }}>
+            Cột "Loại bỏ" được bảo vệ. Vui lòng nhập mật khẩu để tiếp tục.
+          </p>
+          <Input.Password
+            placeholder="Nhập mật khẩu..."
+            value={pwInputThongKe}
+            onChange={e => setPwInputThongKe(e.target.value)}
+            onPressEnter={handlePwSubmitThongKe}
+            status={pwErrorThongKe ? "error" : undefined}
+            autoFocus
+          />
+          {pwErrorThongKe && (
+            <p style={{ color: "#dc2626", fontSize: 12, marginTop: 6 }}>
+              Mật khẩu không đúng. Vui lòng thử lại.
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

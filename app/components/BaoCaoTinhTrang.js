@@ -1,10 +1,20 @@
 "use client";
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { viVN } from "@mui/x-data-grid/locales";
-import { Input, Select, Button, Tag, Tooltip } from "antd";
-import { SearchOutlined, ClearOutlined, DownloadOutlined } from "@ant-design/icons";
+import { Input, Select, Button, Tag, Tooltip, Modal, Checkbox, App as AntApp } from "antd";
+import { SearchOutlined, ClearOutlined, DownloadOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+
+/* ── Password protection (shared with TheoDoiDonHang) ── */
+const DEFAULT_PASSWORD = "admin123";
+const PW_LS_KEY = "theodoi_edit_password";
+
+function getSavedPassword() {
+  try {
+    return localStorage.getItem(PW_LS_KEY) || DEFAULT_PASSWORD;
+  } catch { return DEFAULT_PASSWORD; }
+}
 
 /* ── Status config ── */
 const STATUS_CONFIG = {
@@ -47,11 +57,46 @@ function getDayMayColor(val) {
 
 /* ════════════════════════════════════════ */
 export default function BaoCaoTinhTrang({ rows: processedRows }) {
+  const { message } = AntApp.useApp();
   const [statusData, setStatusData] = useState({});
   const [search, setSearch] = useState("");
   const [filterBoPhan, setFilterBoPhan] = useState(null);
   const [filterStatus, setFilterStatus] = useState(null);
   const [sortModel, setSortModel] = useState([]);
+
+  /* ── Password protection ── */
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [pwInput, setPwInput] = useState("");
+  const [pwError, setPwError] = useState(false);
+  const pendingAction = useRef(null);
+
+  const requirePassword = useCallback((action) => {
+    if (isUnlocked) {
+      action();
+      return;
+    }
+    pendingAction.current = action;
+    setPwInput("");
+    setPwError(false);
+    setShowPwModal(true);
+  }, [isUnlocked]);
+
+  const handlePwSubmit = useCallback(() => {
+    if (pwInput === getSavedPassword()) {
+      setIsUnlocked(true);
+      setShowPwModal(false);
+      setPwInput("");
+      setPwError(false);
+      message.success("Đã mở khóa! Bạn có thể sử dụng chức năng Loại bỏ.");
+      if (pendingAction.current) {
+        pendingAction.current();
+        pendingAction.current = null;
+      }
+    } else {
+      setPwError(true);
+    }
+  }, [pwInput, message]);
 
   // Fetch status from server API
   useEffect(() => {
@@ -65,6 +110,21 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
+  }, []);
+
+  /* ── Update status helper ── */
+  const updateStatus = useCallback((rowKey, field, value) => {
+    // Optimistic update
+    setStatusData(prev => {
+      const next = { ...prev, [rowKey]: { ...(prev[rowKey] || {}), [field]: value } };
+      return next;
+    });
+    // Persist to server
+    fetch("/api/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: rowKey, field, value }),
+    }).catch(() => { /* ignore */ });
   }, []);
 
   /* ── Build report rows from statusData ── */
@@ -116,6 +176,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         ngay_yeu_cau: data.ngay_yeu_cau || null,
         thoi_han: data.thoi_han || null,
         ngay_hoan_thanh: data.ngay_hoan_thanh || null,
+        loai_bo: data.loai_bo || false,
         trang_thai_thoi_han: trangThaiThoiHan,
         so_lan_loi: matchedRow?.so_lan_loi || null,
         day_mays: matchedRow?.day_mays || [],
@@ -183,7 +244,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
-      const headers = ["STT", "Tên chi tiết", "Số file", "Vị trí", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành", "Trạng thái thời hạn"];
+      const headers = ["STT", "Tên chi tiết", "Số file", "Vị trí", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành", "Trạng thái thời hạn", "Loại bỏ"];
       const data = filteredRows.map((r, i) => [
         i + 1,
         r.ten_chi_tiet,
@@ -195,6 +256,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         r.thoi_han ? dayjs(r.thoi_han).format("DD/MM/YYYY") : "",
         r.ngay_hoan_thanh ? dayjs(r.ngay_hoan_thanh).format("DD/MM/YYYY") : "",
         r.trang_thai_thoi_han || "",
+        r.loai_bo ? "Có" : "",
       ]);
       const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
       ws["!cols"] = headers.map((h, i) => ({
@@ -338,7 +400,39 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         );
       },
     },
-  ], []);
+    {
+      field: "loai_bo", headerName: "Loại bỏ", minWidth: 90, width: 90, align: "center", headerAlign: "center",
+      sortable: true,
+      renderCell: (p) => {
+        const key = p.row.key;
+        const checked = !!p.value;
+        const handleChange = () => {
+          requirePassword(() => {
+            updateStatus(key, "loai_bo", !checked);
+          });
+        };
+        return (
+          <Tooltip title={isUnlocked ? (checked ? "Bỏ đánh dấu loại bỏ" : "Đánh dấu loại bỏ") : "🔒 Cần mở khóa"}>
+            <div
+              onClick={(e) => { e.stopPropagation(); handleChange(); }}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: "100%", height: "100%", cursor: "pointer",
+              }}
+            >
+              <Checkbox
+                checked={checked}
+                style={{
+                  pointerEvents: "none",
+                  ...(checked ? { } : {}),
+                }}
+              />
+            </div>
+          </Tooltip>
+        );
+      },
+    },
+  ], [requirePassword, updateStatus, isUnlocked]);
 
   /* ── Chart data for donut ── */
   const donutData = useMemo(() => {
@@ -453,6 +547,30 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         <span style={{ fontSize: 12, color: "#6b7280" }}>
           Hiển thị <b style={{ color: "#111827" }}>{filteredRows.length}</b> / {reportRows.length} bản ghi
         </span>
+        <div style={{ width: 1, height: 16, background: "#e2e8f0" }} />
+        {isUnlocked ? (
+          <Tooltip title="Đã mở khóa — cột Loại bỏ đang hoạt động">
+            <Button
+              size="small" type="text"
+              icon={<UnlockOutlined style={{ color: "#059669" }} />}
+              onClick={() => setIsUnlocked(false)}
+              style={{ fontSize: 11, color: "#059669" }}
+            >
+              Đã mở khóa
+            </Button>
+          </Tooltip>
+        ) : (
+          <Tooltip title="Nhấn để mở khóa chức năng Loại bỏ">
+            <Button
+              size="small" type="text"
+              icon={<LockOutlined style={{ color: "#d97706" }} />}
+              onClick={() => { setPwInput(""); setPwError(false); setShowPwModal(true); }}
+              style={{ fontSize: 11, color: "#d97706" }}
+            >
+              Mở khóa
+            </Button>
+          </Tooltip>
+        )}
         <Button size="small" icon={<DownloadOutlined />} onClick={exportExcel}>Xuất Excel</Button>
       </div>
 
@@ -504,6 +622,43 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
           }}
         />
       </div>
+
+      {/* ── Password Modal ── */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <LockOutlined style={{ color: "#d97706" }} />
+            <span>Nhập mật khẩu để sử dụng</span>
+          </div>
+        }
+        open={showPwModal}
+        onCancel={() => { setShowPwModal(false); setPwInput(""); setPwError(false); pendingAction.current = null; }}
+        onOk={handlePwSubmit}
+        okText="Xác nhận"
+        cancelText="Hủy"
+        centered
+        width={380}
+        okButtonProps={{ disabled: !pwInput }}
+      >
+        <div style={{ padding: "12px 0" }}>
+          <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 12 }}>
+            Cột "Loại bỏ" được bảo vệ. Vui lòng nhập mật khẩu để tiếp tục.
+          </p>
+          <Input.Password
+            placeholder="Nhập mật khẩu..."
+            value={pwInput}
+            onChange={e => setPwInput(e.target.value)}
+            onPressEnter={handlePwSubmit}
+            status={pwError ? "error" : undefined}
+            autoFocus
+          />
+          {pwError && (
+            <p style={{ color: "#dc2626", fontSize: 12, marginTop: 6 }}>
+              Mật khẩu không đúng. Vui lòng thử lại.
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

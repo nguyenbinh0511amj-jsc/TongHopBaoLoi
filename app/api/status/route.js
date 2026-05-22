@@ -42,7 +42,7 @@ export async function POST(request) {
         current[key] = { ...(current[key] || {}), ...fields };
         // Clean up empty entries
         const entry = current[key];
-        if (!entry.tinh_trang && !entry.thoi_han && !entry.ngay_yeu_cau && !entry.ngay_hoan_thanh) {
+        if (!entry.tinh_trang && !entry.thoi_han && !entry.ngay_yeu_cau && !entry.ngay_hoan_thanh && !entry.loai_bo) {
           delete current[key];
         }
       }
@@ -53,7 +53,7 @@ export async function POST(request) {
 
       // Clean up if all fields empty
       const entry = current[body.key];
-      if (!entry.tinh_trang && !entry.thoi_han && !entry.ngay_yeu_cau && !entry.ngay_hoan_thanh) {
+      if (!entry.tinh_trang && !entry.thoi_han && !entry.ngay_yeu_cau && !entry.ngay_hoan_thanh && !entry.loai_bo) {
         delete current[body.key];
       }
     } else if (body.deleteKey) {

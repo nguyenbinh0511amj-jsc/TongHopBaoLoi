@@ -330,15 +330,23 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
     return [...set].sort();
   }, [allDataForOptions]);
 
-  /* ── Filtered + grouped data ── */
-  const orderRows = useMemo(() =>
-    processOrderData(rows, { minLan: minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search: deferredSearch }),
-  [rows, minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, deferredSearch]);
+  /* ── Filtered + grouped data (exclude loại bỏ) ── */
+  const orderRows = useMemo(() => {
+    const data = processOrderData(rows, { minLan: minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search: deferredSearch });
+    return data.filter(r => {
+      const key = `${r.ten_chi_tiet}|||${r.noi_phat_sinh}`;
+      return !statusData[key]?.loai_bo;
+    });
+  }, [rows, minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, deferredSearch, statusData]);
 
-  /* ── Stats per bộ phận (filtered by date/mã lỗi/search but not boPhan) ── */
-  const allFilteredNoBp = useMemo(() =>
-    processOrderData(rows, { minLan: minLanLoi, boPhan: "all", filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search: deferredSearch }),
-  [rows, minLanLoi, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, deferredSearch]);
+  /* ── Stats per bộ phận (filtered by date/mã lỗi/search but not boPhan, exclude loại bỏ) ── */
+  const allFilteredNoBp = useMemo(() => {
+    const data = processOrderData(rows, { minLan: minLanLoi, boPhan: "all", filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search: deferredSearch });
+    return data.filter(r => {
+      const key = `${r.ten_chi_tiet}|||${r.noi_phat_sinh}`;
+      return !statusData[key]?.loai_bo;
+    });
+  }, [rows, minLanLoi, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, deferredSearch, statusData]);
 
   const boPhanStats = useMemo(() => {
     const stats = { all: { count: allFilteredNoBp.length, slLoi: 0, loiTon: 0 } };
