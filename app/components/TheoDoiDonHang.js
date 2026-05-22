@@ -178,7 +178,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const [search, setSearch] = useState("");
   const [filterMaLoi, setFilterMaLoi] = useState(null);
   const [minLanLoi, setMinLanLoi] = useState(3);
-  const [ngayNhanFrom, setNgayNhanFrom] = useState(null);
+  const [ngayNhanFrom, setNgayNhanFrom] = useState(dayjs("2026-05-19"));
   const [ngayNhanTo, setNgayNhanTo] = useState(null);
   const [ngayBaoLoiFrom, setNgayBaoLoiFrom] = useState(null);
   const [ngayBaoLoiTo, setNgayBaoLoiTo] = useState(null);
@@ -333,7 +333,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const clearAllFilters = useCallback(() => {
     setSearch("");
     setFilterMaLoi(null);
-    setNgayNhanFrom(null);
+    setNgayNhanFrom(dayjs("2026-05-19"));
     setNgayNhanTo(null);
     setNgayBaoLoiFrom(null);
     setNgayBaoLoiTo(null);
@@ -587,8 +587,8 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>Nhận từ:</span>
-          <DatePicker size="small" value={ngayNhanFrom} onChange={v => setNgayNhanFrom(v)}
-            format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} allowClear />
+          <DatePicker size="small" value={ngayNhanFrom} onChange={v => setNgayNhanFrom(v || dayjs("2026-05-19"))}
+            format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} />
           <span style={{ fontSize: 11, color: "#9ca3af" }}>→</span>
           <DatePicker size="small" value={ngayNhanTo} onChange={v => setNgayNhanTo(v)}
             format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 115 }} allowClear />

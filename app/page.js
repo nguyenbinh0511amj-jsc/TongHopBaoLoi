@@ -211,7 +211,7 @@ export default function TongHopThongKeLoiPage() {
   const [filterNoiXuLy, setFilterNoiXuLy] = useState(null);
   const [filterNoiPhatSinh, setFilterNoiPhatSinh] = useState(null);
   const [minLanLoi, setMinLanLoi] = useState(3);
-  const [ngayNhanFrom, setNgayNhanFrom] = useState(null);
+  const [ngayNhanFrom, setNgayNhanFrom] = useState(dayjs("2026-05-19"));
   const [ngayNhanTo, setNgayNhanTo] = useState(null);
   const [ngayBaoLoiFrom, setNgayBaoLoiFrom] = useState(null);
   const [ngayBaoLoiTo, setNgayBaoLoiTo] = useState(null);
@@ -528,7 +528,7 @@ export default function TongHopThongKeLoiPage() {
     setFilterTenChiTiet(null);
     setFilterNoiXuLy(null);
     setFilterNoiPhatSinh(null);
-    setNgayNhanFrom(null);
+    setNgayNhanFrom(dayjs("2026-05-19"));
     setNgayNhanTo(null);
     setNgayBaoLoiFrom(null);
     setNgayBaoLoiTo(null);
@@ -852,8 +852,8 @@ export default function TongHopThongKeLoiPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>Nhận từ:</span>
-              <DatePicker size="small" value={ngayNhanFrom} onChange={v => setNgayNhanFrom(v)}
-                format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} allowClear />
+              <DatePicker size="small" value={ngayNhanFrom} onChange={v => setNgayNhanFrom(v || dayjs("2026-05-19"))}
+                format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} />
               <span style={{ fontSize: 11, color: "#9ca3af" }}>→</span>
               <DatePicker size="small" value={ngayNhanTo} onChange={v => setNgayNhanTo(v)}
                 format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 115 }} allowClear />
