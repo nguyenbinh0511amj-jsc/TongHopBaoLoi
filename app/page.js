@@ -852,8 +852,8 @@ export default function TongHopThongKeLoiPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>Nhận từ:</span>
-              <DatePicker size="small" value={ngayNhanFrom} onChange={v => setNgayNhanFrom(v || dayjs("2026-05-19"))}
-                format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} />
+              <DatePicker size="small" value={ngayNhanFrom} onChange={v => setNgayNhanFrom(v)}
+                format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 115 }} allowClear />
               <span style={{ fontSize: 11, color: "#9ca3af" }}>→</span>
               <DatePicker size="small" value={ngayNhanTo} onChange={v => setNgayNhanTo(v)}
                 format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 115 }} allowClear />
