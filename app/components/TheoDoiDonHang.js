@@ -767,7 +767,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
       </div>
 
       {/* ── DataGrid ── */}
-      <div style={{
+      <div className="datagrid-wrapper" style={{
         flex: 1, minHeight: 0, background: "#fff",
         opacity: isFiltering ? 0.6 : 1, transition: "opacity 0.15s",
       }}>

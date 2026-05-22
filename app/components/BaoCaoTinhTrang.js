@@ -363,7 +363,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const hasFilter = !!search || !!filterBoPhan || !!filterStatus;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "#f8fafc" }}>
+    <div className="baocao-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "#f8fafc" }}>
 
       {/* ── Summary Cards ── */}
       <div className="summary-cards" style={{ padding: "12px 16px", display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -457,7 +457,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       </div>
 
       {/* ── DataGrid ── */}
-      <div style={{ flex: 1, minHeight: 0, background: "#fff" }}>
+      <div className="datagrid-wrapper baocao-datagrid" style={{ flex: 1, minHeight: 300, background: "#fff" }}>
         <DataGrid
           rows={filteredRows}
           columns={columns}
