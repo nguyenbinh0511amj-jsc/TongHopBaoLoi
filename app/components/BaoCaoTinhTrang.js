@@ -695,43 +695,43 @@ function DonutChart({ data, size = 160 }) {
     );
   }
 
-  const radius = size / 2 - 10;
-  const innerRadius = radius * 0.6;
+  const strokeWidth = 28;
+  const radius = (size / 2) - strokeWidth / 2 - 4;
   const cx = size / 2;
   const cy = size / 2;
+  const circumference = 2 * Math.PI * radius;
 
-  let startAngle = -90;
+  // Build segments with cumulative offset
+  let cumulativeOffset = 0;
   const segments = data.map(d => {
-    const angle = (d.value / total) * 360;
-    const seg = { ...d, startAngle, angle };
-    startAngle += angle;
+    const pct = d.value / total;
+    const dashLen = pct * circumference;
+    const seg = { ...d, dashLen, offset: cumulativeOffset };
+    cumulativeOffset += dashLen;
     return seg;
   });
-
-  function polarToCartesian(cx, cy, r, angleDeg) {
-    const rad = (angleDeg * Math.PI) / 180;
-    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-  }
-
-  function arcPath(cx, cy, r, startAngle, angle) {
-    if (angle >= 360) angle = 359.99;
-    const start = polarToCartesian(cx, cy, r, startAngle);
-    const end = polarToCartesian(cx, cy, r, startAngle + angle);
-    const largeArc = angle > 180 ? 1 : 0;
-    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y}`;
-  }
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 20, justifyContent: "center" }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* Background track */}
+        <circle
+          cx={cx} cy={cy} r={radius}
+          fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth}
+        />
+        {/* Segments — drawn as circles with dasharray */}
         {segments.map((seg, i) => (
-          <path
+          <circle
             key={i}
-            d={arcPath(cx, cy, radius, seg.startAngle, seg.angle)}
+            cx={cx} cy={cy} r={radius}
             fill="none"
             stroke={seg.color}
-            strokeWidth={radius - innerRadius}
+            strokeWidth={strokeWidth}
+            strokeDasharray={`${seg.dashLen} ${circumference - seg.dashLen}`}
+            strokeDashoffset={-seg.offset}
             strokeLinecap="butt"
+            transform={`rotate(-90 ${cx} ${cy})`}
+            style={{ transition: "stroke-dasharray 0.5s ease, stroke-dashoffset 0.5s ease" }}
           />
         ))}
         {/* Center text */}

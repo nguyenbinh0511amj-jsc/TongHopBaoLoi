@@ -768,18 +768,11 @@ export default function TongHopThongKeLoiPage() {
       },
     },
     {
-      field: "noi_xu_lys", headerName: "Nơi xử lý", minWidth: 130, width: 130, align: "center", headerAlign: "center",
+      field: "_childNoiDungLoi", headerName: "Nội dung lỗi", minWidth: 180, flex: 1,
       sortable: false,
       renderCell: (p) => {
-        if (p.row._type === "child") return <NoiXuLyBadge value={p.row.noi_xu_ly_loi} />;
-        const arr = p.value || [];
-        if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
-        return (
-          <div style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", overflow: "hidden" }} title={arr.join(", ")}>
-            <NoiXuLyBadge value={arr[0]} />
-            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
-          </div>
-        );
+        if (p.row._type === "child") return <span style={{ fontSize: 12 }} title={p.row.noi_dung_loi}>{p.row.noi_dung_loi || "—"}</span>;
+        return null;
       },
     },
     {
@@ -846,11 +839,18 @@ export default function TongHopThongKeLoiPage() {
       },
     },
     {
-      field: "_childNoiDungLoi", headerName: "Nội dung lỗi", minWidth: 180, flex: 1,
+      field: "noi_xu_lys", headerName: "Nơi xử lý", minWidth: 130, width: 130, align: "center", headerAlign: "center",
       sortable: false,
       renderCell: (p) => {
-        if (p.row._type === "child") return <span style={{ fontSize: 12 }} title={p.row.noi_dung_loi}>{p.row.noi_dung_loi || "—"}</span>;
-        return null;
+        if (p.row._type === "child") return <NoiXuLyBadge value={p.row.noi_xu_ly_loi} />;
+        const arr = p.value || [];
+        if (!arr.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        return (
+          <div style={{ display: "flex", gap: 3, alignItems: "center", justifyContent: "center", overflow: "hidden" }} title={arr.join(", ")}>
+            <NoiXuLyBadge value={arr[0]} />
+            {arr.length > 1 && <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>+{arr.length - 1}</span>}
+          </div>
+        );
       },
     },
     {
