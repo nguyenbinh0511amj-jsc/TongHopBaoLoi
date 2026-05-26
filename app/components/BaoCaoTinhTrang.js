@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { viVN } from "@mui/x-data-grid/locales";
 import { Input, Select, Button, Tag, Tooltip, Modal, Checkbox, App as AntApp } from "antd";
-import { SearchOutlined, ClearOutlined, DownloadOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
+import { SearchOutlined, ClearOutlined, DownloadOutlined, LockOutlined, UnlockOutlined, SendOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
 /* ── Password protection (shared with TheoDoiDonHang) ── */
@@ -266,6 +266,91 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       XLSX.writeFile(wb, `Bao_cao_tinh_trang_${new Date().toISOString().slice(0, 10)}.xlsx`);
     });
   }, [filteredRows]);
+
+  /* ── Send Telegram ── */
+  const [isSending, setIsSending] = useState(false);
+  const sendTelegram = useCallback(async () => {
+    setIsSending(true);
+    try {
+      const allItems = reportRows.map(r => ({
+        ten_chi_tiet: r.ten_chi_tiet,
+        so_files: (r.so_files || []).join(", "),
+        day_mays: (r.day_mays || []).join(", "),
+        noi_phat_sinh: r.noi_phat_sinh,
+        tinh_trang: r.tinh_trang,
+        ngay_yeu_cau: r.ngay_yeu_cau ? dayjs(r.ngay_yeu_cau).format("DD/MM/YYYY") : "",
+        thoi_han: r.thoi_han ? dayjs(r.thoi_han).format("DD/MM/YYYY") : "",
+        ngay_hoan_thanh: r.ngay_hoan_thanh ? dayjs(r.ngay_hoan_thanh).format("DD/MM/YYYY") : "",
+        trang_thai: r.trang_thai_thoi_han || "",
+      }));
+
+      const res = await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "summary",
+          stats: {
+            total: stats.total,
+            yeuCau: stats.yeuCau,
+            hoanThanh: stats.hoanThanh,
+            quaHan: stats.quaHan,
+          },
+          items: allItems,
+        }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        message.success("Đã gửi báo cáo qua Telegram!");
+      } else {
+        message.error(json.error || "Gửi thất bại");
+      }
+    } catch (err) {
+      message.error("Lỗi kết nối: " + err.message);
+    } finally {
+      setIsSending(false);
+    }
+  }, [reportRows, stats, message]);
+
+  /* ── Send Zalo (Copy to clipboard) ── */
+  const sendZalo = useCallback(async () => {
+    let text = `BÁO CÁO TÌNH TRẠNG BÁO LỖI\n`;
+    text += `${dayjs().format("DD/MM/YYYY HH:mm")}\n`;
+    text += `Tổng: ${stats.total} | Yêu cầu: ${stats.yeuCau} | Hoàn thành: ${stats.hoanThanh} | Quá hạn: ${stats.quaHan}\n`;
+    text += `\nCHI TIẾT (${reportRows.length} mục):\n`;
+
+    reportRows.forEach((r, i) => {
+      text += `\n${i + 1}. ${r.ten_chi_tiet}`;
+      const p1 = [];
+      if ((r.so_files || []).length) p1.push(`File: ${r.so_files.join(", ")}`);
+      if ((r.day_mays || []).length) p1.push(`Dãy máy: ${r.day_mays.join(", ")}`);
+      if (r.noi_phat_sinh) p1.push(`Vị trí: ${r.noi_phat_sinh}`);
+      if (p1.length) text += `\n${p1.join(" | ")}`;
+      const p2 = [];
+      if (r.tinh_trang) p2.push(r.tinh_trang);
+      if (r.ngay_yeu_cau) p2.push(`YC: ${dayjs(r.ngay_yeu_cau).format("DD/MM")}`);
+      if (r.thoi_han) p2.push(`Hạn: ${dayjs(r.thoi_han).format("DD/MM")}`);
+      if (r.ngay_hoan_thanh) p2.push(`HT: ${dayjs(r.ngay_hoan_thanh).format("DD/MM")}`);
+      if (r.trang_thai_thoi_han) p2.push(r.trang_thai_thoi_han);
+      if (p2.length) text += `\n${p2.join(" | ")}`;
+    });
+
+    text += `\n\nXem chi tiết: https://tong-hop-bao-loi.vercel.app/`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success("Nội dung đã được copy! Chọn người nhận trên Zalo rồi Ctrl+V để dán.");
+      window.open("zalo://", "_self");
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      message.success("Nội dung đã được copy! Chọn người nhận trên Zalo rồi Ctrl+V để dán.");
+      window.open("zalo://", "_self");
+    }
+  }, [reportRows, stats, message]);
 
   /* ── Columns ── */
   const columns = useMemo(() => [
@@ -571,6 +656,12 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
             </Button>
           </Tooltip>
         )}
+        <Button size="small" icon={<SendOutlined />} onClick={sendTelegram} loading={isSending}
+          style={{ background: "#0088cc", borderColor: "#0088cc", color: "#fff" }}
+        >{isSending ? "Đang gửi..." : "Gửi Telegram"}</Button>
+        <Button size="small" onClick={sendZalo}
+          style={{ background: "#0068ff", borderColor: "#0068ff", color: "#fff" }}
+        >Gửi Zalo</Button>
         <Button size="small" icon={<DownloadOutlined />} onClick={exportExcel}>Xuất Excel</Button>
       </div>
 
