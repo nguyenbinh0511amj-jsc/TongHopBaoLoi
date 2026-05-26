@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { viVN } from "@mui/x-data-grid/locales";
 import { Input, Select, Button, Tag, Tooltip, Modal, Checkbox, App as AntApp } from "antd";
-import { SearchOutlined, ClearOutlined, DownloadOutlined, LockOutlined, UnlockOutlined, SendOutlined } from "@ant-design/icons";
+import { SearchOutlined, ClearOutlined, DownloadOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
 /* ── Password protection (shared with TheoDoiDonHang) ── */
@@ -656,13 +656,15 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
             </Button>
           </Tooltip>
         )}
-        <Button size="small" icon={<SendOutlined />} onClick={sendTelegram} loading={isSending}
-          style={{ background: "#0088cc", borderColor: "#0088cc", color: "#fff" }}
-        >{isSending ? "Đang gửi..." : "Gửi Telegram"}</Button>
+        <Button size="small" onClick={sendTelegram} loading={isSending}
+          style={{ background: "#0088cc", borderColor: "#0088cc", color: "#fff", flexShrink: 0, whiteSpace: "nowrap" }}
+        >{isSending ? "..." : "Telegram"}</Button>
         <Button size="small" onClick={sendZalo}
-          style={{ background: "#0068ff", borderColor: "#0068ff", color: "#fff" }}
-        >Gửi Zalo</Button>
-        <Button size="small" icon={<DownloadOutlined />} onClick={exportExcel}>Xuất Excel</Button>
+          style={{ background: "#0068ff", borderColor: "#0068ff", color: "#fff", flexShrink: 0, whiteSpace: "nowrap" }}
+        >Zalo</Button>
+        <Button size="small" icon={<DownloadOutlined />} onClick={exportExcel}
+          style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+        >Excel</Button>
       </div>
 
       {/* ── DataGrid ── */}

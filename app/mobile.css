@@ -468,12 +468,10 @@
     margin: 8px auto !important;
   }
 
-  /* ── Export button text: hide label, show icon only ── */
-  .filter-toolbar .ant-btn span:not(.anticon) {
-    display: none !important;
-  }
-  .filter-toolbar .ant-btn .anticon {
-    margin: 0 !important;
+  /* ── Buttons: keep compact ── */
+  .filter-toolbar .ant-btn {
+    font-size: 11px !important;
+    padding: 0 6px !important;
   }
 }
 
