@@ -187,6 +187,9 @@ function processData(thongKeLoi, soGiaoNhan) {
     const dayMaySet = new Set();
     const ngayNhans = [];
     const seenOrder = new Set();
+    // Count unique phieu_bao_loi_id for so_lan_loi
+    const pblIdSet = new Set();
+    let noPblCount = 0;
 
     // Build search parts during same loop
     const searchParts = [g.ten_chi_tiet];
@@ -206,7 +209,13 @@ function processData(thongKeLoi, soGiaoNhan) {
       if (e.noi_xu_ly_loi) noiXuLySet.add(e.noi_xu_ly_loi);
       if (e.noi_phat_sinh_loi) noiPhatSinhSet.add(e.noi_phat_sinh_loi);
       if (e.day_san_xuat_da_gia_cong_tong_hop_loi) dayMaySet.add(e.day_san_xuat_da_gia_cong_tong_hop_loi);
+      // Track phieu_bao_loi_id for counting
+      if (e.phieu_bao_loi_id) pblIdSet.add(e.phieu_bao_loi_id);
+      else noPblCount++;
     }
+
+    // so_lan_loi = unique phieu_bao_loi_id + entries without phieu_bao_loi_id
+    const soLanLoi = pblIdSet.size + noPblCount;
 
     // Sort entries by ngay_bao_loi descending
     entries.sort((a, b) => {
@@ -221,7 +230,7 @@ function processData(thongKeLoi, soGiaoNhan) {
     result.push({
       id: `grp_${idx++}`,
       ten_chi_tiet: g.ten_chi_tiet,
-      so_lan_loi: entryLen,
+      so_lan_loi: soLanLoi,
       tong_sl_loi: totalSlLoi,
       tong_sl_tra: totalSlTra,
       loi_ton: totalSlLoi - totalSlTra,
@@ -467,10 +476,18 @@ export default function TongHopThongKeLoiPage() {
           }
         });
 
+        // Count unique phieu_bao_loi_id for filtered entries
+        const pblSet = new Set();
+        let noPbl = 0;
+        filteredEntries.forEach(e => {
+          if (e.phieu_bao_loi_id) pblSet.add(e.phieu_bao_loi_id);
+          else noPbl++;
+        });
+
         return {
           ...r,
           entries: filteredEntries,
-          so_lan_loi: filteredEntries.length,
+          so_lan_loi: pblSet.size + noPbl,
           // Giữ lại so_lan_loi_goc để hiển thị
           _so_lan_loi_goc: r.so_lan_loi,
           tong_sl_loi: filteredEntries.reduce((s, e) => s + (Number(e.sl_loi) || 0), 0),

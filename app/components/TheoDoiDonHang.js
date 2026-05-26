@@ -149,14 +149,15 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
   const result = [];
   let idx = 0;
   for (const [key, entries] of groups) {
-    if (entries.length < minLan) continue;
-
     const [tenChiTiet, noiPhatSinh] = key.split("|||");
     let totalSlLoi = 0, totalSlTra = 0;
     const orderKdSet = new Set();
     const maLoiCount = new Map();
     const dayMaySet = new Set();
     const soFileSet = new Set();
+    // Count unique phieu_bao_loi_id for so_lan_loi
+    const pblIdSet = new Set();
+    let noPblCount = 0;
 
     for (const e of entries) {
       totalSlLoi += Number(e.sl_loi) || 0;
@@ -165,7 +166,14 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
       if (e.ma_loi) maLoiCount.set(e.ma_loi, (maLoiCount.get(e.ma_loi) || 0) + 1);
       if (e.day_san_xuat_da_gia_cong_tong_hop_loi) dayMaySet.add(e.day_san_xuat_da_gia_cong_tong_hop_loi);
       if (e._so_file) soFileSet.add(e._so_file);
+      // Track phieu_bao_loi_id
+      if (e.phieu_bao_loi_id) pblIdSet.add(e.phieu_bao_loi_id);
+      else noPblCount++;
     }
+
+    // so_lan_loi = unique phieu_bao_loi_id + entries without phieu_bao_loi_id
+    const soLanLoi = pblIdSet.size + noPblCount;
+    if (soLanLoi < minLan) continue;
 
     const maLoiArr = [...maLoiCount.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -175,7 +183,7 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
       id: idx++,
       ten_chi_tiet: tenChiTiet,
       noi_phat_sinh: noiPhatSinh,
-      so_lan_loi: entries.length,
+      so_lan_loi: soLanLoi,
       tong_sl_loi: totalSlLoi,
       tong_sl_tra: totalSlTra,
       loi_ton: totalSlLoi - totalSlTra,
