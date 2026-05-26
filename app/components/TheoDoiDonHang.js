@@ -304,19 +304,29 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
-  const updateStatus = useCallback((rowKey, field, value) => {
+  // Queue to prevent concurrent writes from overwriting each other
+  const writeQueue = useRef(Promise.resolve());
+
+  const updateStatusBatch = useCallback((rowKey, fields) => {
+    // fields is an object like { tinh_trang: "...", ngay_yeu_cau: "..." }
     // Optimistic update
     setStatusData(prev => {
-      const next = { ...prev, [rowKey]: { ...(prev[rowKey] || {}), [field]: value } };
+      const next = { ...prev, [rowKey]: { ...(prev[rowKey] || {}), ...fields } };
       return next;
     });
-    // Persist to server
-    fetch("/api/status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: rowKey, field, value }),
-    }).catch(() => { /* ignore */ });
+    // Persist to server — chain on writeQueue to serialize writes
+    writeQueue.current = writeQueue.current.then(() =>
+      fetch("/api/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ merge: { [rowKey]: fields } }),
+      }).catch(() => { /* ignore */ })
+    );
   }, []);
+
+  const updateStatus = useCallback((rowKey, field, value) => {
+    updateStatusBatch(rowKey, { [field]: value });
+  }, [updateStatusBatch]);
 
   /* ── All data (no bp/search filter, for unique options) ── */
   const allDataForOptions = useMemo(() =>
@@ -501,15 +511,16 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         const color = val === "Yêu cầu báo lỗi" ? "#d97706" : val === "Hoàn thành báo lỗi" ? "#059669" : undefined;
 
         const doChange = (v) => {
-          updateStatus(key, "tinh_trang", v || null);
+          const fields = { tinh_trang: v || null };
           if (!v) {
-            updateStatus(key, "ngay_yeu_cau", null);
-            updateStatus(key, "ngay_hoan_thanh", null);
+            fields.ngay_yeu_cau = null;
+            fields.ngay_hoan_thanh = null;
           } else {
             const today = dayjs().format("YYYY-MM-DD");
-            if (v === "Yêu cầu báo lỗi") updateStatus(key, "ngay_yeu_cau", today);
-            if (v === "Hoàn thành báo lỗi") updateStatus(key, "ngay_hoan_thanh", today);
+            if (v === "Yêu cầu báo lỗi") fields.ngay_yeu_cau = today;
+            if (v === "Hoàn thành báo lỗi") fields.ngay_hoan_thanh = today;
           }
+          updateStatusBatch(key, fields);
         };
 
         return (
@@ -579,7 +590,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         return <span style={{ fontSize: 12, color: val ? "#059669" : "#d1d5db", fontWeight: val ? 600 : 400 }}>{val ? dayjs(val).format("DD/MM/YYYY") : "—"}</span>;
       },
     },
-  ], [statusData, updateStatus, requirePassword, isUnlocked]);
+  ], [statusData, updateStatus, updateStatusBatch, requirePassword, isUnlocked]);
 
   /* ── Grid sx ── */
   const gridSx = {
