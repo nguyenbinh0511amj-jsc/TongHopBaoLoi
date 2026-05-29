@@ -2,9 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { Home, ChevronRight } from "lucide-react";
+import { usePageContext } from "./AppShell";
+
+const PAGE_NAMES = {
+  "thong-ke": "Thống kê báo lỗi",
+};
 
 export default function Header() {
   const [time, setTime] = useState(null);
+  const { activePage } = usePageContext();
 
   useEffect(() => {
     setTime(new Date());
@@ -28,8 +34,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
       <div className="flex items-center justify-between h-10 px-4">
-        {/* Left: Breadcrumb */}
-        <div className="flex items-center gap-1.5">
+        {/* Left: Hamburger + Breadcrumb */}
           <nav className="flex items-center gap-1 text-sm">
             <div className="flex items-center gap-1 text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
               <Home size={14} />
@@ -37,10 +42,9 @@ export default function Header() {
             </div>
             <ChevronRight size={14} className="text-gray-300" />
             <span className="font-semibold text-gray-800">
-              Thống kê báo lỗi
+              {PAGE_NAMES[activePage] || "Thống kê báo lỗi"}
             </span>
           </nav>
-        </div>
 
         {/* Right: Clock + Date + Avatar */}
         <div className="flex items-center gap-3">

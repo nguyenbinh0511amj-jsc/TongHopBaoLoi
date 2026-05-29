@@ -13,6 +13,8 @@ import {
 import TheoDoiDonHang from "./components/TheoDoiDonHang";
 import BaoCaoTinhTrang from "./components/BaoCaoTinhTrang";
 
+import { usePageContext } from "./components/AppShell";
+
 import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
@@ -263,6 +265,7 @@ function getSavedPassword() {
 
 /* ════════════════════════════════════════ */
 export default function TongHopThongKeLoiPage() {
+  const { activePage } = usePageContext();
   const { message } = AntApp.useApp();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -955,6 +958,9 @@ export default function TongHopThongKeLoiPage() {
     { key: "theodoi", label: "Theo dõi đơn hàng cần báo lỗi", shortLabel: "Theo dõi", icon: "📋", color: "#fff", colorInactive: "#b45309", bg: "linear-gradient(135deg, #d97706, #b45309)", bgInactive: "#fef3c7", border: "#d97706", shadow: "0 2px 8px rgba(217,119,6,0.35)" },
     { key: "baocao", label: "Báo cáo tình trạng", shortLabel: "Báo cáo", icon: "📈", color: "#fff", colorInactive: "#7c3aed", bg: "linear-gradient(135deg, #8b5cf6, #7c3aed)", bgInactive: "#ede9fe", border: "#8b5cf6", shadow: "0 2px 8px rgba(139,92,246,0.35)" },
   ];
+
+  /* ── Page switching ── */
+
 
   return (
     <div className="page-container" style={{ maxWidth: "100%", height: "calc(100vh - 48px)", display: "flex", flexDirection: "column", gap: 0 }}>

@@ -167,6 +167,27 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         ? [...new Set(matchedRow.ngay_nhans.map(n => n.so_file).filter(Boolean))]
         : [];
 
+      // Extract order_kds
+      const orderKds = matchedRow?.order_kds || [];
+
+      // Extract ngay_nhan (MM/DD/YYYY → DD/MM/YYYY)
+      const ngayNhans = matchedRow?.ngay_nhans || [];
+      const ngayNhanStr = [...new Set(ngayNhans.map(n => {
+        if (!n.ngay_nhan) return "";
+        const m = n.ngay_nhan.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (!m) return n.ngay_nhan;
+        return `${m[2].padStart(2,"0")}/${m[1].padStart(2,"0")}/${m[3]}`;
+      }).filter(Boolean))].join(", ");
+
+      // Extract ngay_bao_loi (latest)
+      const ngayBaoLois = matchedRow?.entries
+        ?.map(e => e.ngay_bao_loi).filter(Boolean) || [];
+      const ngayBaoLoiStr = [...new Set(ngayBaoLois.map(d => {
+        const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (!m) return d;
+        return `${m[2].padStart(2,"0")}/${m[1].padStart(2,"0")}/${m[3]}`;
+      }))].join(", ");
+
       result.push({
         id: idx++,
         key,
@@ -181,6 +202,9 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         so_lan_loi: matchedRow?.so_lan_loi || null,
         day_mays: matchedRow?.day_mays || [],
         so_files: soFiles,
+        order_kds: orderKds,
+        ngay_nhan_str: ngayNhanStr,
+        ngay_bao_loi_str: ngayBaoLoiStr,
         _searchText: `${tenChiTiet} ${noiPhatSinh}`.toLowerCase(),
       });
     }
@@ -267,22 +291,66 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     });
   }, [filteredRows]);
 
+  /* ── Helper: convert MM/DD/YYYY → DD/MM/YYYY ── */
+  const toVN = (dateStr) => {
+    if (!dateStr) return "";
+    const m = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return dateStr;
+    return `${m[2].padStart(2,"0")}/${m[1].padStart(2,"0")}/${m[3]}`;
+  };
+
+  /* ── Helper: build grouped report, F2 only ── */
+  const buildReportLines = useCallback(() => {
+    const groups = [];
+    reportRows.forEach(r => {
+      const matchedRow = processedRows?.find(
+        p => p.ten_chi_tiet === r.ten_chi_tiet &&
+          p.entries?.some(e => e.noi_phat_sinh_loi === r.noi_phat_sinh)
+      );
+      if (!matchedRow) return;
+
+      // Filter entries to F2 only
+      const f2Entries = matchedRow.entries.filter(e => e.ma_loi && e.ma_loi.startsWith("F2"));
+      if (!f2Entries.length) return;
+
+      // Group by order_kd
+      const byOrder = new Map();
+      f2Entries.forEach(e => {
+        const key = e.order_kd || "—";
+        if (!byOrder.has(key)) byOrder.set(key, []);
+        byOrder.get(key).push(e);
+      });
+
+      const subLines = [];
+      for (const [orderKd, entries] of byOrder) {
+        const e = entries[0];
+        const parts = [];
+        if (e._so_file) parts.push(`File: ${e._so_file}`);
+        parts.push(`Order: ${orderKd}`);
+        if (e.day_san_xuat_da_gia_cong_tong_hop_loi) parts.push(`Dãy máy: ${e.day_san_xuat_da_gia_cong_tong_hop_loi}`);
+        if (e.noi_phat_sinh_loi) parts.push(`Vị trí: ${e.noi_phat_sinh_loi}`);
+        const nn = toVN(e._ngay_nhan);
+        if (nn) parts.push(`Nhận: ${nn}`);
+        const nbl = toVN(e.ngay_bao_loi);
+        if (nbl) parts.push(`Báo lỗi: ${nbl}`);
+        if (r.tinh_trang) parts.push(r.tinh_trang);
+        if (r.ngay_yeu_cau) parts.push(`YC: ${dayjs(r.ngay_yeu_cau).format("DD/MM")}`);
+        subLines.push(parts.join(" | "));
+      }
+
+      if (subLines.length) {
+        groups.push({ ten_chi_tiet: r.ten_chi_tiet, subLines });
+      }
+    });
+    return groups;
+  }, [reportRows, processedRows]);
+
   /* ── Send Telegram ── */
   const [isSending, setIsSending] = useState(false);
   const sendTelegram = useCallback(async () => {
     setIsSending(true);
     try {
-      const allItems = reportRows.map(r => ({
-        ten_chi_tiet: r.ten_chi_tiet,
-        so_files: (r.so_files || []).join(", "),
-        day_mays: (r.day_mays || []).join(", "),
-        noi_phat_sinh: r.noi_phat_sinh,
-        tinh_trang: r.tinh_trang,
-        ngay_yeu_cau: r.ngay_yeu_cau ? dayjs(r.ngay_yeu_cau).format("DD/MM/YYYY") : "",
-        thoi_han: r.thoi_han ? dayjs(r.thoi_han).format("DD/MM/YYYY") : "",
-        ngay_hoan_thanh: r.ngay_hoan_thanh ? dayjs(r.ngay_hoan_thanh).format("DD/MM/YYYY") : "",
-        trang_thai: r.trang_thai_thoi_han || "",
-      }));
+      const groups = buildReportLines();
 
       const res = await fetch("/api/notify", {
         method: "POST",
@@ -295,7 +363,10 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
             hoanThanh: stats.hoanThanh,
             quaHan: stats.quaHan,
           },
-          items: allItems,
+          items: groups.map(g => ({
+            ten_chi_tiet: g.ten_chi_tiet,
+            detail: g.subLines.map(l => `- ${l}`).join("\n"),
+          })),
         }),
       });
       const json = await res.json();
@@ -309,29 +380,23 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     } finally {
       setIsSending(false);
     }
-  }, [reportRows, stats, message]);
+  }, [buildReportLines, stats, message]);
 
   /* ── Send Zalo (Copy to clipboard) ── */
   const sendZalo = useCallback(async () => {
+    const groups = buildReportLines();
+    const totalOrders = groups.reduce((s, g) => s + g.subLines.length, 0);
+
     let text = `BÁO CÁO TÌNH TRẠNG BÁO LỖI\n`;
     text += `${dayjs().format("DD/MM/YYYY HH:mm")}\n`;
     text += `Tổng: ${stats.total} | Yêu cầu: ${stats.yeuCau} | Hoàn thành: ${stats.hoanThanh} | Quá hạn: ${stats.quaHan}\n`;
-    text += `\nCHI TIẾT (${reportRows.length} mục):\n`;
+    text += `\nCHI TIẾT (${groups.length} chi tiết, ${totalOrders} order - Mã lỗi F2):\n`;
 
-    reportRows.forEach((r, i) => {
-      text += `\n${i + 1}. ${r.ten_chi_tiet}`;
-      const p1 = [];
-      if ((r.so_files || []).length) p1.push(`File: ${r.so_files.join(", ")}`);
-      if ((r.day_mays || []).length) p1.push(`Dãy máy: ${r.day_mays.join(", ")}`);
-      if (r.noi_phat_sinh) p1.push(`Vị trí: ${r.noi_phat_sinh}`);
-      if (p1.length) text += `\n${p1.join(" | ")}`;
-      const p2 = [];
-      if (r.tinh_trang) p2.push(r.tinh_trang);
-      if (r.ngay_yeu_cau) p2.push(`YC: ${dayjs(r.ngay_yeu_cau).format("DD/MM")}`);
-      if (r.thoi_han) p2.push(`Hạn: ${dayjs(r.thoi_han).format("DD/MM")}`);
-      if (r.ngay_hoan_thanh) p2.push(`HT: ${dayjs(r.ngay_hoan_thanh).format("DD/MM")}`);
-      if (r.trang_thai_thoi_han) p2.push(r.trang_thai_thoi_han);
-      if (p2.length) text += `\n${p2.join(" | ")}`;
+    groups.forEach((g, i) => {
+      text += `\n${i + 1}. ${g.ten_chi_tiet}`;
+      g.subLines.forEach(l => {
+        text += `\n- ${l}`;
+      });
     });
 
     text += `\n\nXem chi tiết: https://tong-hop-bao-loi.vercel.app/`;
@@ -350,7 +415,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       message.success("Nội dung đã được copy! Chọn người nhận trên Zalo rồi Ctrl+V để dán.");
       window.open("zalo://", "_self");
     }
-  }, [reportRows, stats, message]);
+  }, [buildReportLines, stats, message]);
 
   /* ── Columns ── */
   const columns = useMemo(() => [

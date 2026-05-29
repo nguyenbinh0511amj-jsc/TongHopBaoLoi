@@ -3,6 +3,18 @@
    Import vào globals.css: @import "./mobile.css";
    ═══════════════════════════════════════════════════════ */
 
+/* ── Hamburger: hidden on desktop ── */
+.sidebar-hamburger {
+  display: none;
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: #374151;
+  align-items: center;
+  justify-content: center;
+}
 /* ── Tab labels: mặc định hiện full, ẩn short ── */
 .tab-label-short {
   display: none;
@@ -33,6 +45,34 @@
 
 /* ═══════════ TABLET (≤ 768px) ═══════════ */
 @media screen and (max-width: 768px) {
+  /* ── Sidebar: hidden on mobile ── */
+  .sidebar {
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 220px !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 50 !important;
+  }
+  .sidebar-mobile-show {
+    transform: translateX(0) !important;
+  }
+  .sidebar-overlay {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 45;
+  }
+  .sidebar-toggle.desktop-only {
+    display: none !important;
+  }
+  .sidebar-hamburger {
+    display: flex !important;
+  }
+
   /* ── Page height — dùng dvh cho mobile browser ── */
   .page-container {
     height: calc(100dvh - 44px) !important;

@@ -87,19 +87,7 @@ export async function POST(request) {
         msg += `<b>CHI TIẾT (${items.length} mục):</b>\n`;
 
         items.forEach((item, i) => {
-          msg += `\n<b>${i + 1}. ${item.ten_chi_tiet}</b>`;
-          const parts = [];
-          if (item.so_files) parts.push(`File: ${item.so_files}`);
-          if (item.day_mays) parts.push(`Dãy máy: ${item.day_mays}`);
-          if (item.noi_phat_sinh) parts.push(`Vị trí: ${item.noi_phat_sinh}`);
-          if (parts.length) msg += `\n${parts.join(" | ")}`;
-          const parts2 = [];
-          parts2.push(item.tinh_trang || "—");
-          if (item.ngay_yeu_cau) parts2.push(`YC: ${item.ngay_yeu_cau}`);
-          if (item.thoi_han) parts2.push(`Hạn: ${item.thoi_han}`);
-          if (item.ngay_hoan_thanh) parts2.push(`HT: ${item.ngay_hoan_thanh}`);
-          if (item.trang_thai) parts2.push(item.trang_thai);
-          msg += `\n${parts2.join(" | ")}\n`;
+          msg += `\n<b>${i + 1}. ${item.ten_chi_tiet}</b>\n${item.detail || ""}\n`;
         });
       } else {
         msg += `\nKhông có mục nào trong báo cáo.`;
