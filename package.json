@@ -20,6 +20,7 @@
     "antd": "^6.3.7",
     "axios": "^1.16.0",
     "dayjs": "^1.11.20",
+    "exceljs": "^4.4.0",
     "googleapis": "^171.4.0",
     "lucide-react": "^1.14.0",
     "mongodb": "^7.2.0",

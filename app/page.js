@@ -12,6 +12,7 @@ import {
 } from "@ant-design/icons";
 import TheoDoiDonHang from "./components/TheoDoiDonHang";
 import BaoCaoTinhTrang from "./components/BaoCaoTinhTrang";
+import DonHangLoiKHHT from "./components/DonHangLoiKHHT";
 
 import { usePageContext } from "./components/AppShell";
 
@@ -55,14 +56,16 @@ async function fetchSoGiaoNhan() {
   return json.rows || [];
 }
 
-/* ── Combined fetch: 1 request for both tables ── */
+/* ── Combined fetch: 1 request for all tables ── */
 async function fetchAllData() {
-  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan");
+  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach");
   const json = await res.json();
   if (!json.ok) throw new Error("Fetch failed");
   return {
     loi: json.results?.tong_hop_loi || [],
     sgn: json.results?.so_giao_nhan || [],
+    pbl: json.results?.phieu_bao_loi || [],
+    khht: json.results?.xac_nhan_ke_hoach || [],
   };
 }
 
@@ -376,6 +379,8 @@ export default function TongHopThongKeLoiPage() {
 
   const rawLoi = allData?.loi || [];
   const rawSGN = allData?.sgn || [];
+  const rawPBL = allData?.pbl || [];
+  const rawKHHT = allData?.khht || [];
 
   /* ── Smart refresh: invalidate server cache + refetch ── */
   const handleRefresh = useCallback(async () => {
@@ -957,6 +962,7 @@ export default function TongHopThongKeLoiPage() {
     { key: "thongke", label: "Thống kê báo lỗi", shortLabel: "Thống kê", icon: "📊", color: "#fff", colorInactive: "#1e40af", bg: "linear-gradient(135deg, #2563eb, #1d4ed8)", bgInactive: "#dbeafe", border: "#2563eb", shadow: "0 2px 8px rgba(37,99,235,0.35)" },
     { key: "theodoi", label: "Theo dõi đơn hàng cần báo lỗi", shortLabel: "Theo dõi", icon: "📋", color: "#fff", colorInactive: "#b45309", bg: "linear-gradient(135deg, #d97706, #b45309)", bgInactive: "#fef3c7", border: "#d97706", shadow: "0 2px 8px rgba(217,119,6,0.35)" },
     { key: "baocao", label: "Báo cáo tình trạng", shortLabel: "Báo cáo", icon: "📈", color: "#fff", colorInactive: "#7c3aed", bg: "linear-gradient(135deg, #8b5cf6, #7c3aed)", bgInactive: "#ede9fe", border: "#8b5cf6", shadow: "0 2px 8px rgba(139,92,246,0.35)" },
+    { key: "khht", label: "Tổng hợp đơn hàng lỗi trên KHHT", shortLabel: "KHHT", icon: "📦", color: "#fff", colorInactive: "#0e7490", bg: "linear-gradient(135deg, #06b6d4, #0891b2)", bgInactive: "#cffafe", border: "#06b6d4", shadow: "0 2px 8px rgba(6,182,212,0.35)" },
   ];
 
   /* ── Page switching ── */
@@ -1201,6 +1207,9 @@ export default function TongHopThongKeLoiPage() {
       ) : activeTab === "theodoi" ? (
         /* Theo dõi đơn hàng cần báo lỗi - độc lập */
         <TheoDoiDonHang rows={processed} isLoading={isLoading} isFiltering={false} />
+      ) : activeTab === "khht" ? (
+        /* Tổng hợp đơn hàng lỗi trên KHHT */
+        <DonHangLoiKHHT xacNhanKeHoach={rawKHHT} phieuBaoLoi={rawPBL} tongHopLoi={rawLoi} isLoading={isLoading} />
       ) : (
         /* Báo cáo tình trạng */
         <BaoCaoTinhTrang rows={processed} />

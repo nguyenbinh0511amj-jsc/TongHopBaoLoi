@@ -24,6 +24,7 @@ const CACHE_TTL = {
   tong_hop_loi: 60 * 1000,              // 1 min — cần update nhanh
   so_giao_nhan: 60 * 1000,              // 1 min — cần update nhanh
   xac_nhan_ke_hoach: 3 * 60 * 1000,
+  phieu_bao_loi: 2 * 60 * 1000,        // 2 min
   Giao_Hang_PSX: 3 * 60 * 1000,
 };
 const DEFAULT_TTL = 60 * 1000;
@@ -101,6 +102,8 @@ let warmedUp = false;
 const ALL_TABLES = [
   "so_giao_nhan",
   "tong_hop_loi",
+  "phieu_bao_loi",
+  "xac_nhan_ke_hoach",
 ];
 
 function warmUpAll() {
