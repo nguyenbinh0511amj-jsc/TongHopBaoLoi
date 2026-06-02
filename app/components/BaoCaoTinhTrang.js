@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { viVN } from "@mui/x-data-grid/locales";
 import { Input, Select, Button, Tag, Tooltip, Modal, Checkbox, App as AntApp } from "antd";
-import { SearchOutlined, ClearOutlined, DownloadOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
+import { SearchOutlined, ClearOutlined, DownloadOutlined, LockOutlined, UnlockOutlined, FullscreenOutlined, FullscreenExitOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
 /* ── Password protection (shared with TheoDoiDonHang) ── */
@@ -63,6 +63,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const [filterBoPhan, setFilterBoPhan] = useState(null);
   const [filterStatus, setFilterStatus] = useState(null);
   const [sortModel, setSortModel] = useState([]);
+  const [isTableExpanded, setIsTableExpanded] = useState(false);
 
   /* ── Password protection ── */
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -609,7 +610,8 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   return (
     <div className="baocao-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "#f8fafc" }}>
 
-      {/* ── Summary Cards ── */}
+      {/* ── Summary Cards & Charts (collapsible) ── */}
+      {!isTableExpanded && (<>
       <div className="summary-cards" style={{ padding: "12px 16px", display: "flex", gap: 12, flexWrap: "wrap" }}>
         {/* Total card */}
         <SummaryCard
@@ -665,6 +667,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
           <BarChart data={stats.byBoPhan} />
         </div>
       </div>
+      </>)}
 
       {/* ── Filter toolbar ── */}
       <div className="filter-toolbar" style={{
@@ -694,6 +697,24 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
             style={{ padding: "0 6px", fontSize: 12 }}>Xóa lọc</Button>
         )}
         <div style={{ flex: 1 }} />
+        <Tooltip title={isTableExpanded ? "Thu gọn bảng" : "Mở rộng bảng"}>
+          <Button
+            size="small" type="text"
+            icon={isTableExpanded ? <FullscreenExitOutlined style={{ color: "#6366f1" }} /> : <FullscreenOutlined style={{ color: "#6366f1" }} />}
+            onClick={() => setIsTableExpanded(prev => !prev)}
+            style={{
+              fontSize: 11,
+              color: "#6366f1",
+              fontWeight: 600,
+              border: isTableExpanded ? "1px solid #6366f130" : "1px solid transparent",
+              background: isTableExpanded ? "#eef2ff" : "transparent",
+              borderRadius: 6,
+              transition: "all 0.2s",
+            }}
+          >
+            {isTableExpanded ? "Thu gọn" : "Mở rộng"}
+          </Button>
+        </Tooltip>
         <span style={{ fontSize: 12, color: "#6b7280" }}>
           Hiển thị <b style={{ color: "#111827" }}>{filteredRows.length}</b> / {reportRows.length} bản ghi
         </span>
@@ -733,7 +754,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       </div>
 
       {/* ── DataGrid ── */}
-      <div className="datagrid-wrapper baocao-datagrid" style={{ flex: 1, minHeight: 300, background: "#fff" }}>
+      <div className="datagrid-wrapper baocao-datagrid" style={{ flex: 1, minHeight: isTableExpanded ? 500 : 300, background: "#fff", transition: "min-height 0.3s ease" }}>
         <DataGrid
           rows={filteredRows}
           columns={columns}
