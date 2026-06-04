@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
  * Uses the combined ?multi= endpoint for speed.
  */
 async function fetchAllData() {
-  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach");
+  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach,nhan_vien,ke_hoach_pkt_dt,ke_hoach_pkt");
   const json = await res.json();
   if (!json.ok) throw new Error("Prefetch failed");
   return {
@@ -16,6 +16,9 @@ async function fetchAllData() {
     sgn: json.results?.so_giao_nhan || [],
     pbl: json.results?.phieu_bao_loi || [],
     khht: json.results?.xac_nhan_ke_hoach || [],
+    nhanVien: json.results?.nhan_vien || [],
+    keHoachPktDt: json.results?.ke_hoach_pkt_dt || [],
+    keHoachPkt: json.results?.ke_hoach_pkt || [],
   };
 }
 

@@ -26,6 +26,10 @@ const CACHE_TTL = {
   xac_nhan_ke_hoach: 3 * 60 * 1000,
   phieu_bao_loi: 2 * 60 * 1000,        // 2 min
   Giao_Hang_PSX: 3 * 60 * 1000,
+  nhan_vien: 10 * 60 * 1000,           // 10 min — rarely changes
+  ke_hoach_pkt_dt: 2 * 60 * 1000,      // 2 min — chi tiết tiến độ QLCL
+  ke_hoach_pkt: 2 * 60 * 1000,          // 2 min — so_file lookup
+
 };
 const DEFAULT_TTL = 60 * 1000;
 

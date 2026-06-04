@@ -13,6 +13,7 @@ import {
 import TheoDoiDonHang from "./components/TheoDoiDonHang";
 import BaoCaoTinhTrang from "./components/BaoCaoTinhTrang";
 import DonHangLoiKHHT from "./components/DonHangLoiKHHT";
+import TheoDoiQLCL from "./components/TheoDoiQLCL";
 
 import { usePageContext } from "./components/AppShell";
 
@@ -58,7 +59,7 @@ async function fetchSoGiaoNhan() {
 
 /* ── Combined fetch: 1 request for all tables ── */
 async function fetchAllData() {
-  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach");
+  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach,nhan_vien,ke_hoach_pkt_dt,ke_hoach_pkt");
   const json = await res.json();
   if (!json.ok) throw new Error("Fetch failed");
   return {
@@ -66,6 +67,9 @@ async function fetchAllData() {
     sgn: json.results?.so_giao_nhan || [],
     pbl: json.results?.phieu_bao_loi || [],
     khht: json.results?.xac_nhan_ke_hoach || [],
+    nhanVien: json.results?.nhan_vien || [],
+    keHoachPktDt: json.results?.ke_hoach_pkt_dt || [],
+    keHoachPkt: json.results?.ke_hoach_pkt || [],
   };
 }
 
@@ -371,9 +375,9 @@ export default function TongHopThongKeLoiPage() {
   const { data: allData, isLoading, isRefetching: refetchingLoi } = useQuery({
     queryKey: ["all_data"],
     queryFn: fetchAllData,
-    staleTime: 20 * 1000,       // 20s — data stale nhanh hơn
+    staleTime: 30 * 1000,            // 30s
     gcTime: 5 * 60 * 1000,
-    refetchInterval: 45 * 1000, // 45s auto-refetch
+    refetchInterval: 2 * 60 * 1000,  // 2 phút auto-refetch
     refetchOnWindowFocus: "always",
   });
 
@@ -381,6 +385,9 @@ export default function TongHopThongKeLoiPage() {
   const rawSGN = allData?.sgn || [];
   const rawPBL = allData?.pbl || [];
   const rawKHHT = allData?.khht || [];
+  const rawNV = allData?.nhanVien || [];
+  const rawKHPKTDT = allData?.keHoachPktDt || [];
+  const rawKHPKT = allData?.keHoachPkt || [];
 
   /* ── Smart refresh: invalidate server cache + refetch ── */
   const handleRefresh = useCallback(async () => {
@@ -963,6 +970,7 @@ export default function TongHopThongKeLoiPage() {
     { key: "theodoi", label: "Theo dõi đơn hàng cần báo lỗi", shortLabel: "Theo dõi", icon: "📋", color: "#fff", colorInactive: "#b45309", bg: "linear-gradient(135deg, #d97706, #b45309)", bgInactive: "#fef3c7", border: "#d97706", shadow: "0 2px 8px rgba(217,119,6,0.35)" },
     { key: "baocao", label: "Báo cáo tình trạng", shortLabel: "Báo cáo", icon: "📈", color: "#fff", colorInactive: "#7c3aed", bg: "linear-gradient(135deg, #8b5cf6, #7c3aed)", bgInactive: "#ede9fe", border: "#8b5cf6", shadow: "0 2px 8px rgba(139,92,246,0.35)" },
     { key: "khht", label: "Tổng hợp đơn hàng lỗi trên KHHT", shortLabel: "KHHT", icon: "📦", color: "#fff", colorInactive: "#0e7490", bg: "linear-gradient(135deg, #06b6d4, #0891b2)", bgInactive: "#cffafe", border: "#06b6d4", shadow: "0 2px 8px rgba(6,182,212,0.35)" },
+    { key: "qlcl", label: "Theo dõi tiến độ QLCL", shortLabel: "QLCL", icon: "🔍", color: "#fff", colorInactive: "#047857", bg: "linear-gradient(135deg, #10b981, #059669)", bgInactive: "#d1fae5", border: "#10b981", shadow: "0 2px 8px rgba(16,185,129,0.35)" },
   ];
 
   /* ── Page switching ── */
@@ -1210,6 +1218,9 @@ export default function TongHopThongKeLoiPage() {
       ) : activeTab === "khht" ? (
         /* Tổng hợp đơn hàng lỗi trên KHHT */
         <DonHangLoiKHHT xacNhanKeHoach={rawKHHT} phieuBaoLoi={rawPBL} tongHopLoi={rawLoi} soGiaoNhan={rawSGN} isLoading={isLoading} />
+      ) : activeTab === "qlcl" ? (
+        /* Theo dõi tiến độ QLCL */
+        <TheoDoiQLCL nhanVien={rawNV} keHoachPktDt={rawKHPKTDT} keHoachPkt={rawKHPKT} isLoading={isLoading} />
       ) : (
         /* Báo cáo tình trạng */
         <BaoCaoTinhTrang rows={processed} />
