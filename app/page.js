@@ -1209,7 +1209,7 @@ export default function TongHopThongKeLoiPage() {
         <TheoDoiDonHang rows={processed} isLoading={isLoading} isFiltering={false} />
       ) : activeTab === "khht" ? (
         /* Tổng hợp đơn hàng lỗi trên KHHT */
-        <DonHangLoiKHHT xacNhanKeHoach={rawKHHT} phieuBaoLoi={rawPBL} tongHopLoi={rawLoi} isLoading={isLoading} />
+        <DonHangLoiKHHT xacNhanKeHoach={rawKHHT} phieuBaoLoi={rawPBL} tongHopLoi={rawLoi} soGiaoNhan={rawSGN} isLoading={isLoading} />
       ) : (
         /* Báo cáo tình trạng */
         <BaoCaoTinhTrang rows={processed} />

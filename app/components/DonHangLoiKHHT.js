@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Input, Button, Spin, InputNumber } from "antd";
 import { SearchOutlined, DownloadOutlined, ClearOutlined } from "@ant-design/icons";
 
-/* ── Helpers ── */
+/* ── Hàm hỗ trợ ── */
 function toVNDate(val) {
   if (!val) return "";
   const m = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -14,14 +14,21 @@ function toVNDate(val) {
 }
 
 /**
- * Build merged data:
- * 1. Group phieu_bao_loi by (order_pbl, ten_chi_tiet_pbl) → list of phiếu
- * 2. Group tong_hop_loi by phieu_bao_loi_id → list of nội dung lỗi
- * 3. For each xac_nhan_ke_hoach row, lookup matching phiếu → chi tiết lỗi
- * 4. Only keep rows that have at least 1 phiếu
+ * Xây dựng dữ liệu gộp:
+ * 1. Nhóm phieu_bao_loi theo (order_pbl, ten_chi_tiet_pbl) → danh sách phiếu
+ * 2. Nhóm tong_hop_loi theo phieu_bao_loi_id → danh sách nội dung lỗi
+ * 3. Với mỗi dòng xac_nhan_ke_hoach, tra cứu phiếu tương ứng → chi tiết lỗi
+ * 4. Chỉ giữ lại các dòng có ít nhất 1 phiếu
  */
-function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi) {
-  // 1. Index tong_hop_loi by phieu_bao_loi_id
+function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, soGiaoNhan) {
+  // 0. Tạo bảng tra cứu: order_kd → ngay_nhan từ so_giao_nhan
+  const sgnLookup = new Map();
+  for (const r of soGiaoNhan) {
+    if (r.order_kd && r.ngay_nhan) {
+      sgnLookup.set(r.order_kd, r.ngay_nhan);
+    }
+  }
+  // 1. Đánh chỉ mục tong_hop_loi theo phieu_bao_loi_id
   const thlByPbl = new Map();
   for (const row of tongHopLoi) {
     const pid = row.phieu_bao_loi_id;
@@ -30,8 +37,8 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi) {
     thlByPbl.get(pid).push(row);
   }
 
-  // 2. Group phieu_bao_loi by (order_pbl, ten_chi_tiet_pbl) and attach nội dung
-  const pblByOrder = new Map(); // key: "order|ten_chi_tiet" → [{ phieu, noiDungs }]
+  // 2. Nhóm phieu_bao_loi theo (order_pbl, ten_chi_tiet_pbl) và gắn nội dung
+  const pblByOrder = new Map(); // khóa: "order|ten_chi_tiet" → [{ phieu, noiDungs }]
   for (const pbl of phieuBaoLoi) {
     const order = (pbl.order_pbl || "").trim();
     const tenCT = (pbl.ten_chi_tiet_pbl || "").trim();
@@ -39,7 +46,7 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi) {
     const key = `${order}|||${tenCT}`;
     if (!pblByOrder.has(key)) pblByOrder.set(key, []);
 
-    // Get nội dung lỗi for this phiếu
+    // Lấy nội dung lỗi cho phiếu này
     const noiDungs = thlByPbl.get(pbl.ID_pbl) || [];
 
     pblByOrder.get(key).push({
@@ -57,7 +64,7 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi) {
     });
   }
 
-  // 3. Merge with xac_nhan_ke_hoach
+  // 3. Gộp với xac_nhan_ke_hoach
   const result = [];
   let maxPhieu = 0;
   for (const kh of xacNhanKeHoach) {
@@ -69,7 +76,7 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi) {
     const phieus = pblByOrder.get(key);
     if (!phieus || phieus.length === 0) continue;
 
-    // Collect all noi_dung_loi across all phieus for summary
+    // Thu thập tất cả noi_dung_loi từ các phiếu để tóm tắt
     const allNoiDungs = [];
     const noiXuLySet = new Set();
     for (const p of phieus) {
@@ -82,13 +89,13 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi) {
     const soLanLoi = phieus.length;
     if (soLanLoi > maxPhieu) maxPhieu = soLanLoi;
 
-    // Summary text: concat all noi_dung_loi
+    // Văn bản tóm tắt: nối tất cả noi_dung_loi
     const summaryParts = allNoiDungs
       .filter(nd => nd.noi_dung_loi)
       .map(nd => nd.noi_dung_loi);
     const summaryText = summaryParts.join("\n");
 
-    // Total sl_bao_loi
+    // Tổng sl_bao_loi
     const tongSlBaoLoi = allNoiDungs.reduce((s, nd) => s + nd.sl_loi, 0);
 
     result.push({
@@ -100,6 +107,7 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi) {
       tt: kh.tt || "",
       xac_nhan_cu: kh.xac_nhan_cu || "",
       xac_nhan_moi: kh.xac_nhan_moi || "",
+      ngay_giao_hang: sgnLookup.get(order) || "",
       trang_thai: kh.trang_thai || "",
       summaryText,
       tongSlBaoLoi,
@@ -110,7 +118,7 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi) {
     });
   }
 
-  // Sort by stt
+  // Sắp xếp theo STT
   result.sort((a, b) => {
     const na = Number(a.stt) || 999;
     const nb = Number(b.stt) || 999;
@@ -121,13 +129,13 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi) {
 }
 
 /* ════════════════════════════════════════ */
-export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi, isLoading }) {
+export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi, soGiaoNhan, isLoading }) {
   const [search, setSearch] = useState("");
   const [minLoi, setMinLoi] = useState(1);
 
   const { rows: allRows, maxPhieu } = useMemo(
-    () => buildData(xacNhanKeHoach || [], phieuBaoLoi || [], tongHopLoi || []),
-    [xacNhanKeHoach, phieuBaoLoi, tongHopLoi]
+    () => buildData(xacNhanKeHoach || [], phieuBaoLoi || [], tongHopLoi || [], soGiaoNhan || []),
+    [xacNhanKeHoach, phieuBaoLoi, tongHopLoi, soGiaoNhan]
   );
 
   const filteredRows = useMemo(() => {
@@ -140,7 +148,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
     return data;
   }, [allRows, search, minLoi]);
 
-  // Recalc maxPhieu for filtered rows
+  // Tính lại maxPhieu cho các dòng đã lọc
   const displayMaxPhieu = useMemo(() => {
     let m = 0;
     for (const r of filteredRows) {
@@ -149,34 +157,34 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
     return m;
   }, [filteredRows]);
 
-  /* ── Export Excel ── */
+  /* ── Xuất Excel ── */
   const exportExcel = useCallback(async () => {
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("Đơn hàng lỗi KHHT");
-    const FIXED_COUNT = 8;
+    const FIXED_COUNT = 9;
 
-    // ── Header row 1: fixed + merged "Phiếu N" ──
-    const h1 = ["STT", "Order KD", "Tên chi tiết", "File GC", "Số lượng", "TT ưu tiên", "Xác nhận cũ", "Xác nhận mới"];
+    // ── Dòng tiêu đề 1: cố định + gộp "Phiếu N" ──
+    const h1 = ["STT", "Order KD", "Tên chi tiết", "File GC", "Số lượng", "TT ưu tiên", "Xác nhận cũ", "Xác nhận mới", "Ngày giao hàng"];
     for (let i = 0; i < displayMaxPhieu; i++) h1.push(`Phiếu ${i + 1}`, "", "", "");
     ws.addRow(h1);
 
-    // ── Header row 2: sub-headers ──
-    const h2 = ["", "", "", "", "", "", "", ""];
+    // ── Dòng tiêu đề 2: tiêu đề phụ ──
+    const h2 = ["", "", "", "", "", "", "", "", ""];
     for (let i = 0; i < displayMaxPhieu; i++) h2.push("Nội dung lỗi", "SL", "Nơi phát sinh", "Nơi xử lý lỗi");
     ws.addRow(h2);
 
-    // Merge fixed headers vertically (rows 1-2)
+    // Gộp tiêu đề cố định theo chiều dọc (dòng 1-2)
     for (let c = 1; c <= FIXED_COUNT; c++) {
       ws.mergeCells(1, c, 2, c);
     }
-    // Merge "Phiếu N" horizontally (4 cols each)
+    // Gộp "Phiếu N" theo chiều ngang (mỗi phiếu 4 cột)
     for (let i = 0; i < displayMaxPhieu; i++) {
       const startCol = FIXED_COUNT + 1 + i * 4;
       ws.mergeCells(1, startCol, 1, startCol + 3);
     }
 
-    // Style headers
+    // Định dạng tiêu đề
     const headerStyle = {
       font: { bold: true, size: 11 },
       alignment: { horizontal: "center", vertical: "middle", wrapText: true },
@@ -197,7 +205,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
       row.height = 22;
     });
 
-    // Phiếu header background (alternating colors)
+    // Màu nền tiêu đề phiếu (xen kẽ)
     for (let i = 0; i < displayMaxPhieu; i++) {
       const startCol = FIXED_COUNT + 1 + i * 4;
       const color = i % 2 === 0 ? "FFDBEAFE" : "FFFCE7F3";
@@ -207,12 +215,12 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
       }
     }
 
-    // ── Data rows ──
+    // ── Các dòng dữ liệu ──
     const thinBorder = {
       top: { style: "thin" }, bottom: { style: "thin" },
       left: { style: "thin" }, right: { style: "thin" },
     };
-    // Alignment per fixed column: [STT, Order, Tên CT, File GC, SLL, TT, XN cũ, XN mới]
+    // Căn chỉnh theo cột cố định: [STT, Order, Tên CT, File GC, SLL, TT, XN cũ, XN mới, Ngày GH]
     const fixedAlign = [
       { horizontal: "center", vertical: "middle", wrapText: true },  // STT
       { horizontal: "left", vertical: "top", wrapText: true },      // Order KD
@@ -222,8 +230,9 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
       { horizontal: "center", vertical: "middle", wrapText: true }, // TT ưu tiên
       { horizontal: "left", vertical: "top", wrapText: true },      // Xác nhận cũ
       { horizontal: "left", vertical: "top", wrapText: true },      // Xác nhận mới
+      { horizontal: "center", vertical: "middle", wrapText: true }, // Ngày giao hàng
     ];
-    // Alignment per phiếu sub-column: [Nội dung lỗi, SL, Nơi phát sinh, Nơi xử lý lỗi]
+    // Căn chỉnh theo cột phụ của phiếu: [Nội dung lỗi, SL, Nơi phát sinh, Nơi xử lý lỗi]
     const phieuAlign = [
       { horizontal: "left", vertical: "top", wrapText: true },      // Nội dung lỗi
       { horizontal: "center", vertical: "top", wrapText: true },    // SL
@@ -241,6 +250,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
         r.tt,
         r.xac_nhan_cu,
         r.xac_nhan_moi,
+        r.ngay_giao_hang ? toVNDate(r.ngay_giao_hang) : "",
       ];
 
       let maxLines = 1;
@@ -263,20 +273,20 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
       const excelRow = ws.addRow(rowData);
       excelRow.height = Math.max(16, maxLines * 15);
 
-      // Apply alignment, border, font per column
+      // Áp dụng căn chỉnh, viền, font cho từng cột
       excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         cell.border = thinBorder;
         cell.font = { size: 11 };
         if (colNumber <= FIXED_COUNT) {
           cell.alignment = fixedAlign[colNumber - 1] || fixedAlign[0];
         } else {
-          // Phiếu sub-column index: 0=Nội dung, 1=SL, 2=NPS, 3=NXL
+          // Chỉ mục cột phụ phiếu: 0=Nội dung, 1=SL, 2=NPS, 3=NXL
           const subIdx = (colNumber - FIXED_COUNT - 1) % 4;
           cell.alignment = phieuAlign[subIdx];
         }
       });
 
-      // Yellow background for phiếu columns with content
+      // Nền vàng cho các cột phiếu có nội dung
       for (let i = 0; i < displayMaxPhieu; i++) {
         const p = r.phieus[i];
         if (p && p.noiDungs.length > 0) {
@@ -289,8 +299,8 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
       }
     });
 
-    // ── Column widths ──
-    const colWidths = [4, 12, 15, 8, 8, 9, 14, 16];
+    // ── Độ rộng cột ──
+    const colWidths = [4, 12, 15, 8, 8, 9, 14, 16, 14];
     for (let i = 0; i < displayMaxPhieu; i++) {
       colWidths.push(18, 4, 9, 10); // Nội dung lỗi, SL, Nơi phát sinh, Nơi xử lý lỗi
     }
@@ -298,7 +308,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
       ws.getColumn(i + 1).width = w;
     });
 
-    // ── Download ──
+    // ── Tải xuống ──
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = URL.createObjectURL(blob);
@@ -324,7 +334,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "#f8fafc" }}>
-      {/* ── Toolbar ── */}
+      {/* ── Thanh công cụ ── */}
       <div style={{
         display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
         padding: "8px 16px", background: "#fff", borderBottom: "1px solid #e2e8f0",
@@ -354,7 +364,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
         <Button size="small" icon={<DownloadOutlined />} onClick={exportExcel}>Xuất Excel</Button>
       </div>
 
-      {/* ── Table ── */}
+      {/* ── Bảng dữ liệu ── */}
       <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
         <table style={{
           width: "100%",
@@ -363,7 +373,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
           fontFamily: "var(--font-inter), Inter, sans-serif",
         }}>
           <thead>
-            {/* Row 1: Fixed headers (rowSpan=2) + Phiếu N merged headers */}
+            {/* Dòng 1: Tiêu đề cố định (rowSpan=2) + Tiêu đề gộp Phiếu N */}
             <tr>
               <Th style={{ minWidth: 40, textAlign: "center", rowSpan: 2 }}>STT</Th>
               <Th style={{ minWidth: 110, rowSpan: 2 }}>Order KD</Th>
@@ -373,6 +383,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
               <Th style={{ minWidth: 60, textAlign: "center", rowSpan: 2 }}>TT ưu tiên</Th>
               <Th style={{ minWidth: 120, rowSpan: 2 }}>Xác nhận cũ</Th>
               <Th style={{ minWidth: 120, rowSpan: 2 }}>Xác nhận mới</Th>
+              <Th style={{ minWidth: 110, textAlign: "center", rowSpan: 2 }}>Ngày giao hàng</Th>
               <Th style={{ minWidth: 200, background: "#fef9c3", color: "#854d0e", rowSpan: 2 }}>Tóm tắt nội dung lỗi</Th>
               <Th style={{ minWidth: 60, textAlign: "center", background: "#fef9c3", color: "#854d0e", rowSpan: 2 }}>SL lỗi</Th>
               {Array.from({ length: displayMaxPhieu }, (_, i) => (
@@ -394,7 +405,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
                 </th>
               ))}
             </tr>
-            {/* Row 2: Sub-column headers for each Phiếu */}
+            {/* Dòng 2: Tiêu đề cột phụ cho từng Phiếu */}
             {displayMaxPhieu > 0 && (
               <tr>
                 {Array.from({ length: displayMaxPhieu }, (_, i) => {
@@ -430,7 +441,8 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
                 <Td style={{ textAlign: "center" }}>{row.tt}</Td>
                 <Td style={{ fontSize: 11, color: "#4b5563" }}>{row.xac_nhan_cu}</Td>
                 <Td style={{ fontSize: 11, color: "#4b5563" }}>{row.xac_nhan_moi}</Td>
-                {/* Yellow summary */}
+                <Td style={{ textAlign: "center", fontSize: 11, color: "#1e293b", fontWeight: 500 }}>{row.ngay_giao_hang ? toVNDate(row.ngay_giao_hang) : "—"}</Td>
+                {/* Tóm tắt (nền vàng) */}
                 <Td style={{ background: "#fffde7", maxWidth: 300 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                     {row.phieus.map((p, pi) => (
@@ -456,7 +468,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
                     <Td key={`p_${i}_nps`} style={{ background: bg }} />,
                     <Td key={`p_${i}_nxl`} style={{ background: bg }} />,
                   ];
-                  // Collect unique noi_xu_ly_loi for this phieu
+                  // Lấy danh sách nơi xử lý lỗi duy nhất cho phiếu này
                   const nxlSet = new Set(p.noiDungs.map(nd => nd.noi_xu_ly_loi).filter(Boolean));
                   const nxlArr = [...nxlSet];
                   return [
@@ -513,7 +525,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
             ))}
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={10 + displayMaxPhieu * 4} style={{ padding: 40, textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
+                <td colSpan={11 + displayMaxPhieu * 4} style={{ padding: 40, textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
                   {allRows.length === 0 ? "Không có đơn hàng nào phát sinh lỗi trên KHHT" : "Không tìm thấy kết quả phù hợp"}
                 </td>
               </tr>
@@ -525,7 +537,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
   );
 }
 
-/* ── Table cell components ── */
+/* ── Các thành phần ô bảng ── */
 function Th({ children, style = {} }) {
   const { rowSpan, ...cssStyle } = style;
   return (
