@@ -6,7 +6,7 @@ import { Input, Select, Button, Tag, Tooltip, Modal, Checkbox, App as AntApp } f
 import { SearchOutlined, ClearOutlined, DownloadOutlined, LockOutlined, UnlockOutlined, FullscreenOutlined, FullscreenExitOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
-/* ── Password protection (shared with TheoDoiDonHang) ── */
+/* ── Bảo vệ mật khẩu (dùng chung với TheoDoiDonHang) ── */
 const DEFAULT_PASSWORD = "admin123";
 const PW_LS_KEY = "theodoi_edit_password";
 
@@ -16,7 +16,7 @@ function getSavedPassword() {
   } catch { return DEFAULT_PASSWORD; }
 }
 
-/* ── Status config ── */
+/* ── Cấu hình trạng thái ── */
 const STATUS_CONFIG = {
   "Yêu cầu báo lỗi": { color: "#d97706", bg: "#fffbeb", border: "#fbbf2440", icon: "📋" },
   "Hoàn thành báo lỗi": { color: "#059669", bg: "#ecfdf5", border: "#10b98140", icon: "✅" },
@@ -65,7 +65,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const [sortModel, setSortModel] = useState([]);
   const [isTableExpanded, setIsTableExpanded] = useState(false);
 
-  /* ── Password protection ── */
+  /* ── Bảo vệ mật khẩu ── */
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [showPwModal, setShowPwModal] = useState(false);
   const [pwInput, setPwInput] = useState("");
@@ -99,7 +99,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     }
   }, [pwInput, message]);
 
-  // Fetch status from server API
+  // Tải trạng thái từ API server
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -113,14 +113,14 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     return () => clearInterval(interval);
   }, []);
 
-  /* ── Update status helper ── */
+  /* ── Hàm cập nhật trạng thái ── */
   const updateStatus = useCallback((rowKey, field, value) => {
-    // Optimistic update
+    // Cập nhật lạc quan
     setStatusData(prev => {
       const next = { ...prev, [rowKey]: { ...(prev[rowKey] || {}), [field]: value } };
       return next;
     });
-    // Persist to server
+    // Lưu vào server
     fetch("/api/status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -128,18 +128,18 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     }).catch(() => { /* ignore */ });
   }, []);
 
-  /* ── Build report rows from statusData ── */
+  /* ── Xây dựng dòng báo cáo từ statusData ── */
   const reportRows = useMemo(() => {
     const result = [];
     let idx = 0;
 
     for (const [key, data] of Object.entries(statusData)) {
-      if (!data.tinh_trang && !data.thoi_han) continue; // skip empty entries
+      if (!data.tinh_trang && !data.thoi_han) continue; // bỏ qua mục trống
 
       const [tenChiTiet, noiPhatSinh] = key.split("|||");
       if (!tenChiTiet) continue;
 
-      // Find matching processed row for so_lan_loi
+      // Tìm dòng đã xử lý khớp cho so_lan_loi
       const matchedRow = processedRows?.find(
         r => r.ten_chi_tiet === tenChiTiet &&
           r.entries?.some(e => e.noi_phat_sinh_loi === noiPhatSinh)
@@ -149,7 +149,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       const ngayHoanThanh = data.ngay_hoan_thanh ? dayjs(data.ngay_hoan_thanh) : null;
       const ngayYeuCau = data.ngay_yeu_cau ? dayjs(data.ngay_yeu_cau) : null;
 
-      // Determine overdue status
+      // Xác định trạng thái quá hạn
       let trangThaiThoiHan = null;
       if (thoiHan && thoiHan.isValid()) {
         if (data.tinh_trang === "Hoàn thành báo lỗi") {
@@ -163,15 +163,15 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         }
       }
 
-      // Extract unique so_file values
+      // Lấy giá trị so_file duy nhất
       const soFiles = matchedRow?.ngay_nhans
         ? [...new Set(matchedRow.ngay_nhans.map(n => n.so_file).filter(Boolean))]
         : [];
 
-      // Extract order_kds
+      // Lấy order_kds
       const orderKds = matchedRow?.order_kds || [];
 
-      // Extract ngay_nhan (MM/DD/YYYY → DD/MM/YYYY)
+      // Lấy ngay_nhan (MM/DD/YYYY → DD/MM/YYYY)
       const ngayNhans = matchedRow?.ngay_nhans || [];
       const ngayNhanStr = [...new Set(ngayNhans.map(n => {
         if (!n.ngay_nhan) return "";
@@ -180,7 +180,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         return `${m[2].padStart(2,"0")}/${m[1].padStart(2,"0")}/${m[3]}`;
       }).filter(Boolean))].join(", ");
 
-      // Extract ngay_bao_loi (latest)
+      // Lấy ngay_bao_loi (mới nhất)
       const ngayBaoLois = matchedRow?.entries
         ?.map(e => e.ngay_bao_loi).filter(Boolean) || [];
       const ngayBaoLoiStr = [...new Set(ngayBaoLois.map(d => {
@@ -210,13 +210,13 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       });
     }
 
-    // Sort: quá hạn first, then yêu cầu, then hoàn thành
+    // Sắp xếp: quá hạn trước, sau đó yêu cầu, rồi hoàn thành
     result.sort((a, b) => {
       const order = { "Quá hạn": 0, "Trong hạn": 1, "Trễ hạn": 2, "Đúng hạn": 3 };
       const oa = order[a.trang_thai_thoi_han] ?? 4;
       const ob = order[b.trang_thai_thoi_han] ?? 4;
       if (oa !== ob) return oa - ob;
-      // Then by status: yêu cầu first
+      // Sau đó theo trạng thái: yêu cầu trước
       if (a.tinh_trang !== b.tinh_trang) {
         if (a.tinh_trang === "Yêu cầu báo lỗi") return -1;
         if (b.tinh_trang === "Yêu cầu báo lỗi") return 1;
@@ -227,7 +227,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     return result;
   }, [statusData, processedRows]);
 
-  /* ── Filtered rows ── */
+  /* ── Dòng đã lọc ── */
   const filteredRows = useMemo(() => {
     let data = reportRows;
     if (filterBoPhan) data = data.filter(r => r.noi_phat_sinh === filterBoPhan);
@@ -239,7 +239,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     return data;
   }, [reportRows, filterBoPhan, filterStatus, search]);
 
-  /* ── Stats ── */
+  /* ── Thống kê ── */
   const stats = useMemo(() => {
     const total = reportRows.length;
     const yeuCau = reportRows.filter(r => r.tinh_trang === "Yêu cầu báo lỗi").length;
@@ -250,7 +250,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     const trongHan = reportRows.filter(r => r.trang_thai_thoi_han === "Trong hạn").length;
     const chuaCoThoiHan = reportRows.filter(r => !r.trang_thai_thoi_han).length;
 
-    // Stats per bộ phận
+    // Thống kê theo bộ phận
     const byBoPhan = {};
     for (const bp of Object.keys(BO_PHAN_CONFIG)) {
       const bpRows = reportRows.filter(r => r.noi_phat_sinh === bp);
@@ -265,7 +265,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     return { total, yeuCau, hoanThanh, quaHan, treHan, dungHan, trongHan, chuaCoThoiHan, byBoPhan };
   }, [reportRows]);
 
-  /* ── Export Excel ── */
+  /* ── Xuất Excel ── */
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
@@ -292,7 +292,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     });
   }, [filteredRows]);
 
-  /* ── Helper: convert MM/DD/YYYY → DD/MM/YYYY ── */
+  /* ── Hàm chuyển đổi: MM/DD/YYYY → DD/MM/YYYY ── */
   const toVN = (dateStr) => {
     if (!dateStr) return "";
     const m = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -300,7 +300,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     return `${m[2].padStart(2,"0")}/${m[1].padStart(2,"0")}/${m[3]}`;
   };
 
-  /* ── Helper: build grouped report, F2 only ── */
+  /* ── Hàm xây dựng báo cáo nhóm, chỉ mã lỗi F2 ── */
   const buildReportLines = useCallback(() => {
     const groups = [];
     reportRows.forEach(r => {
@@ -310,11 +310,11 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       );
       if (!matchedRow) return;
 
-      // Filter entries to F2 only
+      // Lọc mục chỉ giữ F2
       const f2Entries = matchedRow.entries.filter(e => e.ma_loi && e.ma_loi.startsWith("F2"));
       if (!f2Entries.length) return;
 
-      // Group by order_kd
+      // Nhóm theo order_kd
       const byOrder = new Map();
       f2Entries.forEach(e => {
         const key = e.order_kd || "—";
@@ -346,7 +346,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     return groups;
   }, [reportRows, processedRows]);
 
-  /* ── Send Telegram ── */
+  /* ── Gửi Telegram ── */
   const [isSending, setIsSending] = useState(false);
   const sendTelegram = useCallback(async () => {
     setIsSending(true);
@@ -383,7 +383,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     }
   }, [buildReportLines, stats, message]);
 
-  /* ── Send Zalo (Copy to clipboard) ── */
+  /* ── Gửi Zalo (Sao chép vào clipboard) ── */
   const sendZalo = useCallback(async () => {
     const groups = buildReportLines();
     const totalOrders = groups.reduce((s, g) => s + g.subLines.length, 0);
@@ -418,7 +418,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     }
   }, [buildReportLines, stats, message]);
 
-  /* ── Columns ── */
+  /* ── Cột dữ liệu ── */
   const columns = useMemo(() => [
     {
       field: "ten_chi_tiet", headerName: "Tên chi tiết", minWidth: 180, flex: 1,
@@ -585,7 +585,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     },
   ], [requirePassword, updateStatus, isUnlocked]);
 
-  /* ── Chart data for donut ── */
+  /* ── Dữ liệu biểu đồ donut ── */
   const donutData = useMemo(() => {
     const segments = [];
     if (stats.yeuCau > 0) segments.push({ label: "Yêu cầu báo lỗi", value: stats.yeuCau, color: "#f59e0b" });
@@ -610,10 +610,10 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   return (
     <div className="baocao-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "#f8fafc" }}>
 
-      {/* ── Summary Cards & Charts (collapsible) ── */}
+      {/* ── Thẻ tổng hợp và biểu đồ (có thể thu gọn) ── */}
       {!isTableExpanded && (<>
       <div className="summary-cards" style={{ padding: "12px 16px", display: "flex", gap: 12, flexWrap: "wrap" }}>
-        {/* Total card */}
+        {/* Thẻ tổng */}
         <SummaryCard
           title="Tổng số" value={stats.total} icon="📊"
           gradient="linear-gradient(135deg, #667eea, #764ba2)"
@@ -802,7 +802,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         />
       </div>
 
-      {/* ── Password Modal ── */}
+      {/* ── Hộp thoại mật khẩu ── */}
       <Modal
         title={
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -843,7 +843,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
 }
 
 /* ════════════════════════════════════════ */
-/* ── Summary Card ── */
+/* ── Thẻ tổng hợp ── */
 function SummaryCard({ title, value, icon, gradient, subtitle, alert }) {
   return (
     <div style={{
@@ -852,7 +852,7 @@ function SummaryCard({ title, value, icon, gradient, subtitle, alert }) {
       boxShadow: alert ? "0 0 0 3px #fecaca40" : "0 1px 3px rgba(0,0,0,0.06)",
       overflow: "hidden", transition: "all 0.2s",
     }}>
-      {/* Gradient accent */}
+      {/* Đường nhấn gradient */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: gradient }} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
         <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>{icon} {title}</span>
@@ -863,7 +863,7 @@ function SummaryCard({ title, value, icon, gradient, subtitle, alert }) {
   );
 }
 
-/* ── Donut Chart (Pure CSS/SVG) ── */
+/* ── Biểu đồ Donut (CSS/SVG thuần) ── */
 function DonutChart({ data, size = 160 }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) {
@@ -880,7 +880,7 @@ function DonutChart({ data, size = 160 }) {
   const cy = size / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // Build segments with cumulative offset
+  // Xây dựng các phân đoạn với độ lệch tích lũy
   let cumulativeOffset = 0;
   const segments = data.map(d => {
     const pct = d.value / total;
@@ -893,12 +893,12 @@ function DonutChart({ data, size = 160 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 20, justifyContent: "center" }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Background track */}
+        {/* Thanh nền */}
         <circle
           cx={cx} cy={cy} r={radius}
           fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth}
         />
-        {/* Segments — drawn as circles with dasharray */}
+        {/* Các phân đoạn — vẽ bằng hình tròn với dasharray */}
         {segments.map((seg, i) => (
           <circle
             key={i}
@@ -913,7 +913,7 @@ function DonutChart({ data, size = 160 }) {
             style={{ transition: "stroke-dasharray 0.5s ease, stroke-dashoffset 0.5s ease" }}
           />
         ))}
-        {/* Center text */}
+        {/* Văn bản ở giữa */}
         <text x={cx} y={cy - 6} textAnchor="middle" fontSize={22} fontWeight={800} fill="#1e293b">{total}</text>
         <text x={cx} y={cy + 12} textAnchor="middle" fontSize={10} fill="#9ca3af">Tổng</text>
       </svg>
@@ -931,7 +931,7 @@ function DonutChart({ data, size = 160 }) {
   );
 }
 
-/* ── Bar Chart (Pure CSS) ── */
+/* ── Biểu đồ thanh (CSS thuần) ── */
 function BarChart({ data }) {
   const bpKeys = Object.keys(BO_PHAN_CONFIG);
   const maxVal = Math.max(1, ...bpKeys.map(k => data[k]?.total || 0));
@@ -956,7 +956,7 @@ function BarChart({ data }) {
               </div>
             </div>
             <div style={{ height: 24, background: "#f1f5f9", borderRadius: 6, overflow: "hidden", position: "relative" }}>
-              {/* Hoàn thành portion */}
+              {/* Phần hoàn thành */}
               {d.hoanThanh > 0 && (
                 <div style={{
                   position: "absolute", left: 0, top: 0, bottom: 0,
@@ -966,7 +966,7 @@ function BarChart({ data }) {
                   zIndex: 1,
                 }} />
               )}
-              {/* Yêu cầu portion (stacked) */}
+              {/* Phần yêu cầu (xếp chồng) */}
               {d.yeuCau > 0 && (
                 <div style={{
                   position: "absolute", left: `${(d.hoanThanh / maxVal) * 100}%`, top: 0, bottom: 0,
@@ -977,7 +977,7 @@ function BarChart({ data }) {
                   zIndex: 1,
                 }} />
               )}
-              {/* Value label */}
+              {/* Nhãn giá trị */}
               <span style={{
                 position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
                 fontSize: 12, fontWeight: 700, color: pct > 60 ? "#fff" : "#374151",
@@ -989,7 +989,7 @@ function BarChart({ data }) {
           </div>
         );
       })}
-      {/* Legend */}
+      {/* Chú giải */}
       <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#6b7280" }}>
           <span style={{ width: 12, height: 8, borderRadius: 2, background: "#10b981" }} /> Hoàn thành

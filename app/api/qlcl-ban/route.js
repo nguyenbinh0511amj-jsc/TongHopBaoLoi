@@ -10,7 +10,7 @@ async function getCollection() {
   return client.db(DB_NAME).collection(COLLECTION);
 }
 
-// GET — fetch ban assignments: { ban1: [...codes], ban2: [...], ban3: [...] }
+// GET — lấy phân công bàn: { ban1: [...mã_nv], ban2: [...], ban3: [...] }
 export async function GET() {
   try {
     const col = await getCollection();
@@ -18,12 +18,12 @@ export async function GET() {
     const data = doc?.data || { ban1: [], ban2: [], ban3: [], ban4: [] };
     return NextResponse.json({ ok: true, data });
   } catch (err) {
-    console.error("MongoDB GET qlcl-ban error:", err);
+    console.error("Lỗi MongoDB GET qlcl-ban:", err);
     return NextResponse.json({ ok: false, data: { ban1: [], ban2: [], ban3: [], ban4: [] }, error: err.message }, { status: 500 });
   }
 }
 
-// POST — update ban assignment
+// POST — cập nhật phân công bàn
 // Body: { ban: "ban1", codes: ["0001", "0154", ...] }
 export async function POST(request) {
   try {
@@ -31,17 +31,17 @@ export async function POST(request) {
     const { ban, codes } = body;
 
     if (!ban || !["ban1", "ban2", "ban3", "ban4"].includes(ban)) {
-      return NextResponse.json({ ok: false, error: "Invalid ban (ban1|ban2|ban3|ban4)" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Bàn không hợp lệ (ban1|ban2|ban3|ban4)" }, { status: 400 });
     }
     if (!Array.isArray(codes)) {
-      return NextResponse.json({ ok: false, error: "codes must be array" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "codes phải là mảng" }, { status: 400 });
     }
 
     const col = await getCollection();
     const doc = await col.findOne({ _id: DOC_ID });
     const current = doc?.data || { ban1: [], ban2: [], ban3: [], ban4: [] };
 
-    // Update the specified ban
+    // Cập nhật bàn được chỉ định
     current[ban] = codes;
 
     await col.updateOne(
@@ -52,7 +52,7 @@ export async function POST(request) {
 
     return NextResponse.json({ ok: true, data: current });
   } catch (err) {
-    console.error("MongoDB POST qlcl-ban error:", err);
+    console.error("Lỗi MongoDB POST qlcl-ban:", err);
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
 }

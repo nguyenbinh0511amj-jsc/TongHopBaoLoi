@@ -8,7 +8,7 @@ import {
   DownOutlined, UpOutlined,
 } from "@ant-design/icons";
 
-/* ── Responsive CSS (injected once) ── */
+/* ── CSS Responsive (được thêm một lần) ── */
 const QLCL_STYLE_ID = "qlcl-responsive-style";
 if (typeof window !== "undefined" && !document.getElementById(QLCL_STYLE_ID)) {
   const style = document.createElement("style");
@@ -180,7 +180,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
     return m;
   }, [keHoachPkt]);
 
-  /* ── Parse ngay_tao "MM/DD/YYYY" → sortable "YYYY-MM-DD" ── */
+  /* ── Phân tích ngay_tao "MM/DD/YYYY" → "YYYY-MM-DD" có thể sắp xếp ── */
   const toSortDate = (d) => {
     if (!d) return "0000-00-00";
     const p = d.split("/");
@@ -195,13 +195,13 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
     return keHoachPktDt.filter(kh => kh.ngay_tao === target);
   }, [keHoachPktDt, filterDate]);
 
-  /* ── Đơn hàng đang làm per code (Code là EnumList: "0466 , 0576") ── */
+  /* ── Đơn hàng đang làm theo mã NV (Code là EnumList: "0466 , 0576") ── */
   /* Chỉ giữ dòng mới nhất (ngay_tao) cho mỗi order_kd + ten_chi_tiet */
   const ordersByCode = useMemo(() => {
-    // Step 1: group active orders by employee code
+    // Bước 1: nhóm đơn hàng đang hoạt động theo mã nhân viên
     const raw = new Map(); // code → Map<orderKey, khRow>
     for (const kh of filteredPktDt) {
-      const codeField = kh.Code; // Capital C in ke_hoach_pkt_dt
+      const codeField = kh.Code; // Chữ C viết hoa trong ke_hoach_pkt_dt
       if (!codeField || !isActive(kh.ghi_trang_thai, kh.thoi_gian_hoan_thanh)) continue;
       const codes = [...new Set(codeField.split(",").map(s => s.trim()).filter(Boolean))];
       const sortDate = toSortDate(kh.ngay_tao);
@@ -213,7 +213,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
         if (!existing) {
           raw.get(code).set(orderKey, kh);
         } else {
-          // Keep newest: ngay_tao first, _RowNumber as tiebreaker
+          // Giữ mới nhất: ngay_tao trước, _RowNumber làm tiêu chí phụ
           const existDate = toSortDate(existing.ngay_tao);
           if (sortDate > existDate || (sortDate === existDate && rowNum > (parseInt(existing._RowNumber) || 0))) {
             raw.get(code).set(orderKey, kh);
@@ -221,7 +221,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
         }
       }
     }
-    // Step 2: convert to code → array (sorted by ngay_tao desc, then _RowNumber desc)
+    // Bước 2: chuyển sang code → mảng (sắp xếp theo ngay_tao giảm dần, _RowNumber giảm dần)
     const m = new Map();
     for (const [code, orderMap] of raw) {
       const orders = [...orderMap.values()].sort((a, b) => {
@@ -248,7 +248,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
 
   /* ── Phát hiện NV cùng làm 1 đơn hàng + gán màu riêng ── */
   const { duplicateOrderColors, duplicatedCodes } = useMemo(() => {
-    // Collect latest order per assigned employee
+    // Thu thập đơn hàng mới nhất của mỗi nhân viên được phân công
     const orderToCodesMap = new Map(); // orderKey → Set<code>
     const allAssigned = [];
     for (const codes of Object.values(banData)) {
@@ -262,7 +262,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
       if (!orderToCodesMap.has(key)) orderToCodesMap.set(key, new Set());
       orderToCodesMap.get(key).add(code);
     }
-    // Find orders shared by 2+ employees → assign color index
+    // Tìm đơn hàng được 2+ nhân viên cùng làm → gán chỉ số màu
     const dupColors = new Map(); // orderKey → color object
     const dupCodes = new Set();
     let colorIdx = 0;
@@ -290,7 +290,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
     return nhanVien.filter(nv => !assignedCodes.has(nv.code));
   }, [nhanVien, assignedCodes]);
 
-  /* ── Save ban to MongoDB ── */
+  /* ── Lưu phân công bàn vào MongoDB ── */
   const saveBan = useCallback(async (ban, codes) => {
     setSavingBan(ban);
     try {
@@ -387,7 +387,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
               display: "flex", flexDirection: "column",
               overflow: "hidden",
             }}>
-              {/* Ban header */}
+              {/* Tiêu đề bàn */}
               <div className="qlcl-ban-header" style={{
                 background: theme.gradient,
                 padding: "12px 16px",
@@ -423,7 +423,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
                 </Button>
               </div>
 
-              {/* NV cards — collapsible */}
+              {/* Thẻ NV — có thể thu gọn */}
               {!collapsedBans.has(banKey) && (
               <div className="qlcl-nv-list" style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
                 {codes.length === 0 ? (
@@ -442,7 +442,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
                     const to = nv?.to || "";
 
                     const isDup = duplicatedCodes.has(code);
-                    // Get the color from the duplicate order this employee is working on
+                    // Lấy màu từ đơn hàng trùng lặp mà nhân viên đang làm
                     const nvDupColor = isDup && orders.length > 0
                       ? duplicateOrderColors.get(`${orders[0].order_kd}|||${orders[0].ten_chi_tiet}`)
                       : null;
@@ -459,7 +459,7 @@ export default function TheoDoiQLCL({ nhanVien = [], keHoachPktDt = [], keHoachP
                         onMouseEnter={e => e.currentTarget.style.boxShadow = nvDupColor ? `0 0 0 3px ${nvDupColor.glow}, 0 2px 8px rgba(0,0,0,0.08)` : "0 2px 8px rgba(0,0,0,0.08)"}
                         onMouseLeave={e => e.currentTarget.style.boxShadow = nvDupColor ? `0 0 0 3px ${nvDupColor.glow}` : "none"}
                       >
-                        {/* NV header */}
+                        {/* Tiêu đề NV */}
                         <div className="qlcl-nv-header" style={{
                           display: "flex", alignItems: "center", justifyContent: "space-between",
                           padding: "8px 12px",

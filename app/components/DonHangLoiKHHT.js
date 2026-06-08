@@ -20,12 +20,16 @@ function toVNDate(val) {
  * 3. Với mỗi dòng xac_nhan_ke_hoach, tra cứu phiếu tương ứng → chi tiết lỗi
  * 4. Chỉ giữ lại các dòng có ít nhất 1 phiếu
  */
-function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, soGiaoNhan) {
-  // 0. Tạo bảng tra cứu: order_kd → ngay_nhan từ so_giao_nhan
-  const sgnLookup = new Map();
-  for (const r of soGiaoNhan) {
-    if (r.order_kd && r.ngay_nhan) {
-      sgnLookup.set(r.order_kd, r.ngay_nhan);
+function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX) {
+  // 0. Tạo bảng tra cứu: order_kd → { ngay_giao, sl_da_xac_nhan, noi_dung_da_xac_nhan } từ Giao_Hang_PSX
+  const ghpsxLookup = new Map();
+  for (const r of giaoHangPSX) {
+    if (r.order_kd) {
+      ghpsxLookup.set(r.order_kd, {
+        ngay_giao: r.ngay_giao || "",
+        sl_da_xac_nhan: r.sl_da_xac_nhan_khi_giao_hang || "",
+        noi_dung_da_xac_nhan: r.noi_dung_da_xac_nhan_khi_giao_hang || "",
+      });
     }
   }
   // 1. Đánh chỉ mục tong_hop_loi theo phieu_bao_loi_id
@@ -107,7 +111,9 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, soGiaoNhan) {
       tt: kh.tt || "",
       xac_nhan_cu: kh.xac_nhan_cu || "",
       xac_nhan_moi: kh.xac_nhan_moi || "",
-      ngay_giao_hang: sgnLookup.get(order) || "",
+      ngay_giao_hang: (ghpsxLookup.get(order) || {}).ngay_giao || "",
+      sl_da_xac_nhan_gh: (ghpsxLookup.get(order) || {}).sl_da_xac_nhan || "",
+      noi_dung_da_xac_nhan_gh: (ghpsxLookup.get(order) || {}).noi_dung_da_xac_nhan || "",
       trang_thai: kh.trang_thai || "",
       summaryText,
       tongSlBaoLoi,
@@ -129,13 +135,13 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, soGiaoNhan) {
 }
 
 /* ════════════════════════════════════════ */
-export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi, soGiaoNhan, isLoading }) {
+export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX, isLoading }) {
   const [search, setSearch] = useState("");
   const [minLoi, setMinLoi] = useState(1);
 
   const { rows: allRows, maxPhieu } = useMemo(
-    () => buildData(xacNhanKeHoach || [], phieuBaoLoi || [], tongHopLoi || [], soGiaoNhan || []),
-    [xacNhanKeHoach, phieuBaoLoi, tongHopLoi, soGiaoNhan]
+    () => buildData(xacNhanKeHoach || [], phieuBaoLoi || [], tongHopLoi || [], giaoHangPSX || []),
+    [xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX]
   );
 
   const filteredRows = useMemo(() => {
@@ -162,15 +168,15 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("Đơn hàng lỗi KHHT");
-    const FIXED_COUNT = 9;
+    const FIXED_COUNT = 11;
 
     // ── Dòng tiêu đề 1: cố định + gộp "Phiếu N" ──
-    const h1 = ["STT", "Order KD", "Tên chi tiết", "File GC", "Số lượng", "TT ưu tiên", "Xác nhận cũ", "Xác nhận mới", "Ngày giao hàng"];
+    const h1 = ["STT", "Order KD", "Tên chi tiết", "File GC", "Số lượng", "TT ưu tiên", "Xác nhận cũ", "Xác nhận mới", "Ngày giao hàng", "SL đã xác nhận khi giao hàng", "Nội dung đã xác nhận khi giao hàng"];
     for (let i = 0; i < displayMaxPhieu; i++) h1.push(`Phiếu ${i + 1}`, "", "", "");
     ws.addRow(h1);
 
     // ── Dòng tiêu đề 2: tiêu đề phụ ──
-    const h2 = ["", "", "", "", "", "", "", "", ""];
+    const h2 = ["", "", "", "", "", "", "", "", "", "", ""];
     for (let i = 0; i < displayMaxPhieu; i++) h2.push("Nội dung lỗi", "SL", "Nơi phát sinh", "Nơi xử lý lỗi");
     ws.addRow(h2);
 
@@ -220,7 +226,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
       top: { style: "thin" }, bottom: { style: "thin" },
       left: { style: "thin" }, right: { style: "thin" },
     };
-    // Căn chỉnh theo cột cố định: [STT, Order, Tên CT, File GC, SLL, TT, XN cũ, XN mới, Ngày GH]
+    // Căn chỉnh theo cột cố định: [STT, Order, Tên CT, File GC, SLL, TT, XN cũ, XN mới, Ngày GH, SL đã XN, ND đã XN]
     const fixedAlign = [
       { horizontal: "center", vertical: "middle", wrapText: true },  // STT
       { horizontal: "left", vertical: "top", wrapText: true },      // Order KD
@@ -231,6 +237,8 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
       { horizontal: "left", vertical: "top", wrapText: true },      // Xác nhận cũ
       { horizontal: "left", vertical: "top", wrapText: true },      // Xác nhận mới
       { horizontal: "center", vertical: "middle", wrapText: true }, // Ngày giao hàng
+      { horizontal: "center", vertical: "middle", wrapText: true }, // SL đã xác nhận khi giao hàng
+      { horizontal: "left", vertical: "top", wrapText: true },      // Nội dung đã xác nhận khi giao hàng
     ];
     // Căn chỉnh theo cột phụ của phiếu: [Nội dung lỗi, SL, Nơi phát sinh, Nơi xử lý lỗi]
     const phieuAlign = [
@@ -251,6 +259,8 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
         r.xac_nhan_cu,
         r.xac_nhan_moi,
         r.ngay_giao_hang ? toVNDate(r.ngay_giao_hang) : "",
+        r.sl_da_xac_nhan_gh || "",
+        r.noi_dung_da_xac_nhan_gh || "",
       ];
 
       let maxLines = 1;
@@ -300,7 +310,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
     });
 
     // ── Độ rộng cột ──
-    const colWidths = [4, 12, 15, 8, 8, 9, 14, 16, 14];
+    const colWidths = [4, 12, 15, 8, 8, 9, 14, 16, 14, 12, 22];
     for (let i = 0; i < displayMaxPhieu; i++) {
       colWidths.push(18, 4, 9, 10); // Nội dung lỗi, SL, Nơi phát sinh, Nơi xử lý lỗi
     }
@@ -384,6 +394,8 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
               <Th style={{ minWidth: 120, rowSpan: 2 }}>Xác nhận cũ</Th>
               <Th style={{ minWidth: 120, rowSpan: 2 }}>Xác nhận mới</Th>
               <Th style={{ minWidth: 110, textAlign: "center", rowSpan: 2 }}>Ngày giao hàng</Th>
+              <Th style={{ minWidth: 80, textAlign: "center", rowSpan: 2 }}>SL đã XN khi GH</Th>
+              <Th style={{ minWidth: 160, rowSpan: 2 }}>ND đã XN khi GH</Th>
               <Th style={{ minWidth: 200, background: "#fef9c3", color: "#854d0e", rowSpan: 2 }}>Tóm tắt nội dung lỗi</Th>
               <Th style={{ minWidth: 60, textAlign: "center", background: "#fef9c3", color: "#854d0e", rowSpan: 2 }}>SL lỗi</Th>
               {Array.from({ length: displayMaxPhieu }, (_, i) => (
@@ -442,6 +454,8 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
                 <Td style={{ fontSize: 11, color: "#4b5563" }}>{row.xac_nhan_cu}</Td>
                 <Td style={{ fontSize: 11, color: "#4b5563" }}>{row.xac_nhan_moi}</Td>
                 <Td style={{ textAlign: "center", fontSize: 11, color: "#1e293b", fontWeight: 500 }}>{row.ngay_giao_hang ? toVNDate(row.ngay_giao_hang) : "—"}</Td>
+                <Td style={{ textAlign: "center", fontSize: 11, color: "#1e293b", fontWeight: 600 }}>{row.sl_da_xac_nhan_gh || "—"}</Td>
+                <Td style={{ fontSize: 11, color: "#4b5563" }}>{row.noi_dung_da_xac_nhan_gh || "—"}</Td>
                 {/* Tóm tắt (nền vàng) */}
                 <Td style={{ background: "#fffde7", maxWidth: 300 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -525,7 +539,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi
             ))}
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={11 + displayMaxPhieu * 4} style={{ padding: 40, textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
+                <td colSpan={13 + displayMaxPhieu * 4} style={{ padding: 40, textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
                   {allRows.length === 0 ? "Không có đơn hàng nào phát sinh lỗi trên KHHT" : "Không tìm thấy kết quả phù hợp"}
                 </td>
               </tr>

@@ -34,7 +34,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
       <div className="flex items-center justify-between h-10 px-4">
-        {/* Left: Hamburger + Breadcrumb */}
+        {/* Trái: Breadcrumb */}
           <nav className="flex items-center gap-1 text-sm">
             <div className="flex items-center gap-1 text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
               <Home size={14} />
@@ -46,26 +46,26 @@ export default function Header() {
             </span>
           </nav>
 
-        {/* Right: Clock + Date + Avatar */}
+        {/* Phải: Đồng hồ + Ngày + Avatar */}
         <div className="flex items-center gap-3">
-          {/* Clock */}
+          {/* Đồng hồ */}
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <span className="font-mono font-semibold text-gray-700 text-sm">
               🕐 {formattedTime}
             </span>
           </div>
 
-          {/* Date */}
+          {/* Ngày */}
           <span className="hidden sm:block text-xs text-gray-400 border-l border-gray-200 pl-3">
             {formattedDate}
           </span>
 
-          {/* VN flag */}
+          {/* Cờ Việt Nam */}
           <span className="text-xs px-1.5 py-0.5 bg-gray-50 rounded border border-gray-200 font-medium text-gray-500">
             VN
           </span>
 
-          {/* User Avatar */}
+          {/* Ảnh đại diện người dùng */}
           <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
               B

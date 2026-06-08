@@ -23,7 +23,7 @@ import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
 
-/* ── Date helper: MM/DD/YYYY → DD/MM/YYYY ── */
+/* ── Hàm chuyển đổi ngày: MM/DD/YYYY → DD/MM/YYYY ── */
 function toVNDate(val) {
   if (!val) return "";
   const m = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -33,7 +33,7 @@ function toVNDate(val) {
   return `${b}/${a}/${y}`;
 }
 
-/* ── Parse MM/DD/YYYY to dayjs ── */
+/* ── Phân tích MM/DD/YYYY sang dayjs ── */
 function parseDateMMDD(val) {
   if (!val) return null;
   const m = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -57,9 +57,9 @@ async function fetchSoGiaoNhan() {
   return json.rows || [];
 }
 
-/* ── Combined fetch: 1 request for all tables ── */
+/* ── Tải gộp dữ liệu: 1 yêu cầu cho tất cả bảng ── */
 async function fetchAllData() {
-  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach,nhan_vien,ke_hoach_pkt_dt,ke_hoach_pkt");
+  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach,nhan_vien,ke_hoach_pkt_dt,ke_hoach_pkt,Giao_Hang_PSX");
   const json = await res.json();
   if (!json.ok) throw new Error("Fetch failed");
   return {
@@ -70,10 +70,11 @@ async function fetchAllData() {
     nhanVien: json.results?.nhan_vien || [],
     keHoachPktDt: json.results?.ke_hoach_pkt_dt || [],
     keHoachPkt: json.results?.ke_hoach_pkt || [],
+    giaoHangPSX: json.results?.Giao_Hang_PSX || [],
   };
 }
 
-/* ── Force invalidate server cache + refetch ── */
+/* ── Buộc xóa cache server + tải lại ── */
 async function invalidateAndFetch(table) {
   const res = await fetch(`/api/appsheet?table=${table}&invalidate=1`);
   const json = await res.json();
@@ -81,7 +82,7 @@ async function invalidateAndFetch(table) {
   return json.rows || [];
 }
 
-/* ── Badge helpers ── */
+/* ── Các thành phần nhãn hiển thị ── */
 function MaLoiBadge({ value }) {
   if (!value) return <span style={{ color: "#bfbfbf" }}>—</span>;
   const colors = {
@@ -146,9 +147,9 @@ function getDayMayColor(val) {
   return DAY_MAY_COLORS[Math.abs(hash) % DAY_MAY_COLORS.length];
 }
 
-/* ── Process: group by ten_chi_tiet, aggregate errors, lookup ngay_nhan ── */
+/* ── Xử lý: nhóm theo ten_chi_tiet, gộp lỗi, tra cứu ngay_nhan ── */
 function processData(thongKeLoi, soGiaoNhan) {
-  // Build lookup: order_kd → { ngay_nhan, so_file } from so_giao_nhan (one-pass Map)
+  // Tạo bảng tra cứu: order_kd → { ngay_nhan, so_file } từ so_giao_nhan (duyệt 1 lượt)
   const sgnLookup = new Map();
   for (let i = 0; i < soGiaoNhan.length; i++) {
     const r = soGiaoNhan[i];
@@ -157,14 +158,14 @@ function processData(thongKeLoi, soGiaoNhan) {
     }
   }
 
-  // Group by ten_chi_tiet — single pass
+  // Nhóm theo ten_chi_tiet — duyệt 1 lượt
   const groups = new Map();
   for (let i = 0; i < thongKeLoi.length; i++) {
     const item = thongKeLoi[i];
     const key = (item.ten_chi_tiet || "").trim();
     if (!key) continue;
 
-    // Lookup ngay_nhan + so_file early — skip entries without ngay_nhan
+    // Tra cứu ngay_nhan + so_file sớm — bỏ qua mục không có ngay_nhan
     const sgnEntry = item.order_kd ? (sgnLookup.get(item.order_kd) || null) : null;
     const entryNgayNhan = sgnEntry ? sgnEntry.ngay_nhan : "";
     if (!entryNgayNhan) continue;
@@ -178,7 +179,7 @@ function processData(thongKeLoi, soGiaoNhan) {
     g.entries.push({ ...item, _ngay_nhan: entryNgayNhan, _so_file: entrySoFile });
   }
 
-  // Build result array
+  // Xây dựng mảng kết quả
   const result = [];
   let idx = 0;
   for (const [, g] of groups) {
@@ -187,7 +188,7 @@ function processData(thongKeLoi, soGiaoNhan) {
     const entries = g.entries;
     const entryLen = entries.length;
 
-    // Aggregate in a single pass
+    // Gộp trong một lượt duyệt
     let totalSlLoi = 0, totalSlTra = 0;
     const orderKdSet = new Set();
     const maLoiSet = new Set();
@@ -196,11 +197,11 @@ function processData(thongKeLoi, soGiaoNhan) {
     const dayMaySet = new Set();
     const ngayNhans = [];
     const seenOrder = new Set();
-    // Count unique phieu_bao_loi_id for so_lan_loi
+    // Đếm số phieu_bao_loi_id duy nhất cho so_lan_loi
     const pblIdSet = new Set();
     let noPblCount = 0;
 
-    // Build search parts during same loop
+    // Xây dựng phần tìm kiếm trong cùng vòng lặp
     const searchParts = [g.ten_chi_tiet];
 
     for (let i = 0; i < entryLen; i++) {
@@ -218,15 +219,15 @@ function processData(thongKeLoi, soGiaoNhan) {
       if (e.noi_xu_ly_loi) noiXuLySet.add(e.noi_xu_ly_loi);
       if (e.noi_phat_sinh_loi) noiPhatSinhSet.add(e.noi_phat_sinh_loi);
       if (e.day_san_xuat_da_gia_cong_tong_hop_loi) dayMaySet.add(e.day_san_xuat_da_gia_cong_tong_hop_loi);
-      // Track phieu_bao_loi_id for counting
+      // Tính lại phân loại trùng lặp
       if (e.phieu_bao_loi_id) pblIdSet.add(e.phieu_bao_loi_id);
       else noPblCount++;
     }
 
-    // so_lan_loi = unique phieu_bao_loi_id + entries without phieu_bao_loi_id
+    // so_lan_loi = số phieu_bao_loi_id duy nhất + số mục không có phieu_bao_loi_id
     const soLanLoi = pblIdSet.size + noPblCount;
 
-    // Sort entries by ngay_bao_loi descending
+    // Sắp xếp các mục theo ngay_bao_loi giảm dần
     entries.sort((a, b) => {
       const ta = a.ngay_bao_loi ? new Date(a.ngay_bao_loi).getTime() : 0;
       const tb = b.ngay_bao_loi ? new Date(b.ngay_bao_loi).getTime() : 0;
@@ -255,12 +256,12 @@ function processData(thongKeLoi, soGiaoNhan) {
     });
   }
 
-  // Sort by so_lan_loi descending
+  // Sắp xếp theo so_lan_loi giảm dần
   result.sort((a, b) => b.so_lan_loi - a.so_lan_loi);
   return result;
 }
 
-/* ── Password protection (shared with TheoDoiDonHang) ── */
+/* ── Bảo vệ mật khẩu (dùng chung với TheoDoiDonHang) ── */
 const DEFAULT_PASSWORD = "admin123";
 const PW_LS_KEY = "theodoi_edit_password";
 
@@ -294,14 +295,14 @@ export default function TongHopThongKeLoiPage() {
     catch { return 'thongke'; }
   });
 
-  /* ── Password protection for "Loại bỏ" column ── */
+  /* ── Bảo vệ mật khẩu cho cột "Loại bỏ" ── */
   const [isUnlockedThongKe, setIsUnlockedThongKe] = useState(false);
   const [showPwModalThongKe, setShowPwModalThongKe] = useState(false);
   const [pwInputThongKe, setPwInputThongKe] = useState("");
   const [pwErrorThongKe, setPwErrorThongKe] = useState(false);
   const pendingActionThongKe = useRef(null);
 
-  /* ── Status data for loai_bo ── */
+  /* ── Dữ liệu trạng thái cho loại bỏ ── */
   const [statusDataThongKe, setStatusDataThongKe] = useState({});
 
   useEffect(() => {
@@ -371,13 +372,13 @@ export default function TongHopThongKeLoiPage() {
   const deferredNgayBaoLoiFrom = useDeferredValue(ngayBaoLoiFrom);
   const deferredNgayBaoLoiTo = useDeferredValue(ngayBaoLoiTo);
 
-  /* ── Fetch both tables in a single request ── */
+  /* ── Tải cả hai bảng trong một yêu cầu ── */
   const { data: allData, isLoading, isRefetching: refetchingLoi } = useQuery({
     queryKey: ["all_data"],
     queryFn: fetchAllData,
-    staleTime: 30 * 1000,            // 30s
+    staleTime: 30 * 1000,            // 30 giây
     gcTime: 5 * 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,  // 2 phút auto-refetch
+    refetchInterval: 2 * 60 * 1000,  // 2 phút tự động tải lại
     refetchOnWindowFocus: "always",
   });
 
@@ -388,46 +389,47 @@ export default function TongHopThongKeLoiPage() {
   const rawNV = allData?.nhanVien || [];
   const rawKHPKTDT = allData?.keHoachPktDt || [];
   const rawKHPKT = allData?.keHoachPkt || [];
+  const rawGHPSX = allData?.giaoHangPSX || [];
 
-  /* ── Smart refresh: invalidate server cache + refetch ── */
+  /* ── Làm mới thông minh: xóa cache server + tải lại ── */
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      // Invalidate server cache + fetch fresh data in parallel
+      // Xóa cache server + tải dữ liệu mới song song
       const [loiData, sgnData] = await Promise.all([
         invalidateAndFetch("tong_hop_loi"),
         invalidateAndFetch("so_giao_nhan"),
       ]);
-      // Update React Query cache directly
+      // Cập nhật cache React Query trực tiếp
       queryClient.setQueryData(["all_data"], { loi: loiData, sgn: sgnData });
     } catch (err) {
-      console.error("Refresh failed:", err);
+      console.error("Lỗi làm mới:", err);
       queryClient.invalidateQueries({ queryKey: ["all_data"] });
     } finally {
       setIsRefreshing(false);
     }
   }, [queryClient]);
 
-  /* ── Process data ── */
+  /* ── Xử lý dữ liệu ── */
   const processed = useMemo(() => processData(rawLoi, rawSGN), [rawLoi, rawSGN]);
 
-  /* ── Unique filter values ── */
+  /* ── Giá trị lọc duy nhất ── */
   const uniqueMaLoi = useMemo(() => [...new Set(rawLoi.map(r => r.ma_loi).filter(Boolean))].sort(), [rawLoi]);
   const uniqueTenChiTiet = useMemo(() => [...new Set(processed.map(r => r.ten_chi_tiet).filter(Boolean))].sort(), [processed]);
   const uniqueNoiXuLy = useMemo(() => [...new Set(rawLoi.map(r => r.noi_xu_ly_loi).filter(Boolean))].sort(), [rawLoi]);
   const uniqueNoiPhatSinh = ["PSX", "PKT", "Phôi", "PKY"];
 
-  /* ── Filter rows ── */
+  /* ── Lọc dữ liệu ── */
   const rows = useMemo(() => {
     let data = processed;
 
-    // Min lần lỗi — dựa trên TỔNG số lần lỗi GỐC (trước khi lọc entry)
+    // Số lần lỗi tối thiểu — dựa trên TỔNG số lần lỗi GỐC (trước khi lọc từng mục)
     data = data.filter(r => r.so_lan_loi >= (deferredMinLan || 1));
 
-    // Filter tên chi tiết (group-level)
+    // Lọc tên chi tiết (cấp nhóm)
     if (deferredTenChiTiet) data = data.filter(r => r.ten_chi_tiet === deferredTenChiTiet);
 
-    // Text search (group-level)
+    // Tìm kiếm văn bản (cấp nhóm)
     if (deferredSearch.trim()) {
       const q = deferredSearch.toLowerCase();
       data = data.filter(r => r._searchText.includes(q));
@@ -481,7 +483,7 @@ export default function TongHopThongKeLoiPage() {
 
         if (!filteredEntries.length) return null;
 
-        // Rebuild aggregates từ entries đã lọc
+        // Xây dựng lại tổng hợp từ các mục đã lọc
         const ngayNhans = [];
         const seen = new Set();
         filteredEntries.forEach(e => {
@@ -491,7 +493,7 @@ export default function TongHopThongKeLoiPage() {
           }
         });
 
-        // Count unique phieu_bao_loi_id for filtered entries
+        // Đếm số phieu_bao_loi_id duy nhất cho các mục đã lọc
         const pblSet = new Set();
         let noPbl = 0;
         filteredEntries.forEach(e => {
@@ -519,7 +521,7 @@ export default function TongHopThongKeLoiPage() {
     return data;
   }, [processed, deferredSearch, deferredMaLoi, deferredTenChiTiet, deferredNoiXuLy, deferredNoiPhatSinh, deferredMinLan, deferredNgayNhanFrom, deferredNgayNhanTo, deferredNgayBaoLoiFrom, deferredNgayBaoLoiTo]);
 
-  /* ── Stats ── */
+  /* ── Thống kê ── */
   const stats = useMemo(() => ({
     chiTiet: rows.length,
     tongLanLoi: rows.reduce((s, r) => s + r.so_lan_loi, 0),
@@ -530,7 +532,7 @@ export default function TongHopThongKeLoiPage() {
   const hasActiveFilter = !!filterMaLoi || !!filterTenChiTiet || !!filterNoiXuLy || !!filterNoiPhatSinh || !!ngayNhanFrom || !!ngayNhanTo || !!ngayBaoLoiFrom || !!ngayBaoLoiTo;
   const isFiltering = deferredSearch !== search || deferredMaLoi !== filterMaLoi || deferredTenChiTiet !== filterTenChiTiet || deferredNoiXuLy !== filterNoiXuLy || deferredNoiPhatSinh !== filterNoiPhatSinh || deferredMinLan !== minLanLoi || deferredNgayNhanFrom !== ngayNhanFrom || deferredNgayNhanTo !== ngayNhanTo || deferredNgayBaoLoiFrom !== ngayBaoLoiFrom || deferredNgayBaoLoiTo !== ngayBaoLoiTo;
 
-  /* ── Toggle expand ── */
+  /* ── Mở rộng/thu gọn dòng ── */
   const toggleExpand = useCallback((id) => {
     setExpandedRows(prev => {
       const next = new Set(prev);
@@ -539,23 +541,23 @@ export default function TongHopThongKeLoiPage() {
     });
   }, []);
 
-  /* ── Build flat rows (parent + expanded children) ── */
+  /* ── Xây dựng dòng phẳng (cha + con mở rộng) ── */
   const flatRows = useMemo(() => {
-    // Sort parents theo sortModel
+    // Sắp xếp dòng cha theo sortModel
     let sortedParents = [...rows];
     if (sortModel.length > 0) {
       const { field, sort } = sortModel[0];
       sortedParents.sort((a, b) => {
         let va = a[field];
         let vb = b[field];
-        // Handle arrays (ma_lois, order_kds, etc.)
+        // Xử lý mảng (ma_lois, order_kds, ...)
         if (Array.isArray(va)) va = va.join(", ");
         if (Array.isArray(vb)) vb = vb.join(", ");
-        // Handle numbers
+        // Xử lý số
         if (typeof va === "number" && typeof vb === "number") {
           return sort === "asc" ? va - vb : vb - va;
         }
-        // Handle strings
+        // Xử lý chuỗi
         va = String(va || "").toLowerCase();
         vb = String(vb || "").toLowerCase();
         return sort === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
@@ -593,7 +595,7 @@ export default function TongHopThongKeLoiPage() {
     return result;
   }, [rows, expandedRows, sortModel]);
 
-  /* ── Excel Export ── */
+  /* ── Xuất Excel ── */
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
@@ -620,7 +622,7 @@ export default function TongHopThongKeLoiPage() {
         ];
       });
       const ws1 = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryData]);
-      // Auto width
+      // Độ rộng cột tự động
       ws1["!cols"] = summaryHeaders.map((h, i) => ({
         wch: Math.max(h.length, ...summaryData.map(r => String(r[i] || "").length).slice(0, 50), 8),
       }));
@@ -659,12 +661,12 @@ export default function TongHopThongKeLoiPage() {
       }));
       XLSX.utils.book_append_sheet(wb, ws2, "Chi tiết");
 
-      // Download
+      // Tải xuống
       XLSX.writeFile(wb, `Thong_ke_bao_loi_${new Date().toISOString().slice(0, 10)}.xlsx`);
     });
   }, [rows, statusDataThongKe]);
 
-  /* ── Clear all filters ── */
+  /* ── Xóa tất cả bộ lọc ── */
   const clearAllFilters = useCallback(() => {
     setSearch("");
     setFilterMaLoi(null);
@@ -677,7 +679,7 @@ export default function TongHopThongKeLoiPage() {
     setNgayBaoLoiTo(null);
   }, []);
 
-  /* ── Columns ── */
+  /* ── Cột dữ liệu ── */
   const columns = useMemo(() => [
     {
       field: "expand", headerName: "", width: 40, sortable: false, filterable: false,
@@ -910,7 +912,7 @@ export default function TongHopThongKeLoiPage() {
             }}>{val}</span>
           );
         }
-        // Parent row: show summary count
+        // Dòng cha: hiển thị số lượng tóm tắt
         const entries = p.row.entries || [];
         if (!entries.length) return <span style={{ color: "#bfbfbf" }}>—</span>;
         const confirmed = entries.filter(e => {
@@ -932,7 +934,7 @@ export default function TongHopThongKeLoiPage() {
       sortable: false,
       renderCell: (p) => {
         if (p.row._type === "child") return null;
-        // Build key from ten_chi_tiet and first noi_phat_sinh
+        // Tạo khóa từ ten_chi_tiet và noi_phat_sinh đầu tiên
         const tenCT = p.row.ten_chi_tiet || "";
         const noiPS = (p.row.noi_phat_sinhs || [])[0] || "";
         const key = `${tenCT}|||${noiPS}`;
@@ -973,12 +975,12 @@ export default function TongHopThongKeLoiPage() {
     { key: "qlcl", label: "Theo dõi tiến độ QLCL", shortLabel: "QLCL", icon: "🔍", color: "#fff", colorInactive: "#047857", bg: "linear-gradient(135deg, #10b981, #059669)", bgInactive: "#d1fae5", border: "#10b981", shadow: "0 2px 8px rgba(16,185,129,0.35)" },
   ];
 
-  /* ── Page switching ── */
+  /* ── Chuyển trang ── */
 
 
   return (
     <div className="page-container" style={{ maxWidth: "100%", height: "calc(100vh - 48px)", display: "flex", flexDirection: "column", gap: 0 }}>
-      {/* Tab bar */}
+      {/* Thanh tab */}
       <div className="tab-bar" style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "8px 16px 0", background: "#f8fafc", borderBottom: "1px solid #e5e7eb",
@@ -1021,11 +1023,11 @@ export default function TongHopThongKeLoiPage() {
           title="Làm mới dữ liệu từ server (bỏ cache)" />
       </div>
 
-      {/* Content area */}
+      {/* Vùng nội dung */}
       <div key={activeTab} className="tab-content-enter" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {activeTab === "thongke" ? (
         <>
-          {/* Stats + Export for tab 1 */}
+          {/* Thống kê + Xuất Excel cho tab 1 */}
           <div className="stats-row" style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "6px 16px", background: "#fff", borderBottom: "1px solid #f0f0f0",
@@ -1039,7 +1041,7 @@ export default function TongHopThongKeLoiPage() {
             <Button size="small" icon={<DownloadOutlined />} onClick={exportExcel} title="Xuất Excel">Xuất Excel</Button>
           </div>
 
-          {/* Filter toolbar for tab 1 */}
+          {/* Thanh lọc cho tab 1 */}
           <div className="filter-toolbar" style={{
             padding: "6px 16px", background: "#fff", borderBottom: "1px solid #f0f0f0",
             display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
@@ -1217,7 +1219,7 @@ export default function TongHopThongKeLoiPage() {
         <TheoDoiDonHang rows={processed} isLoading={isLoading} isFiltering={false} />
       ) : activeTab === "khht" ? (
         /* Tổng hợp đơn hàng lỗi trên KHHT */
-        <DonHangLoiKHHT xacNhanKeHoach={rawKHHT} phieuBaoLoi={rawPBL} tongHopLoi={rawLoi} soGiaoNhan={rawSGN} isLoading={isLoading} />
+        <DonHangLoiKHHT xacNhanKeHoach={rawKHHT} phieuBaoLoi={rawPBL} tongHopLoi={rawLoi} giaoHangPSX={rawGHPSX} isLoading={isLoading} />
       ) : activeTab === "qlcl" ? (
         /* Theo dõi tiến độ QLCL */
         <TheoDoiQLCL nhanVien={rawNV} keHoachPktDt={rawKHPKTDT} keHoachPkt={rawKHPKT} isLoading={isLoading} />
@@ -1267,7 +1269,7 @@ export default function TongHopThongKeLoiPage() {
   );
 }
 
-/* ── Simple hash function for consistent colors ── */
+/* ── Hàm băm đơn giản cho màu nhất quán ── */
 function hashCode(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -1278,7 +1280,7 @@ function hashCode(str) {
   return hash;
 }
 
-/* ── Stat Pill component ── */
+/* ── Thành phần nhãn thống kê ── */
 function StatPill({ label, value, color }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

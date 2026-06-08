@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-// Rate limit: track last sent time
+// Giới hạn tần suất: theo dõi thời điểm gửi gần nhất
 let lastSentAt = 0;
-const MIN_INTERVAL = 30 * 1000; // 30 seconds
+const MIN_INTERVAL = 30 * 1000; // 30 giây
 
 async function sendTelegram(text) {
   if (!BOT_TOKEN || !CHAT_ID) {
@@ -24,17 +24,17 @@ async function sendTelegram(text) {
   });
 
   const json = await res.json();
-  if (!json.ok) throw new Error(json.description || "Telegram API error");
+  if (!json.ok) throw new Error(json.description || "Lỗi API Telegram");
   return json;
 }
 
-// Telegram has 4096 char limit per message, split if needed
+// Telegram giới hạn 4096 ký tự mỗi tin nhắn, tách nếu cần
 async function sendLongMessage(text) {
   const MAX_LEN = 4000;
   if (text.length <= MAX_LEN) {
     return sendTelegram(text);
   }
-  // Split by lines, send in chunks
+  // Tách theo dòng, gửi theo từng đoạn
   const lines = text.split("\n");
   let chunk = "";
   for (const line of lines) {
@@ -51,7 +51,8 @@ async function sendLongMessage(text) {
 /**
  * POST /api/notify
  * Body: { type: "summary", stats, items }
- *    or { type: "status_change", ... }
+ *    hoặc { type: "status_change", ... }
+ * Gửi thông báo qua Telegram
  */
 export async function POST(request) {
   try {
@@ -62,9 +63,9 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: "Chưa cấu hình Telegram Bot" }, { status: 500 });
     }
 
-    // ── Summary report ──
+    // ── Báo cáo tổng hợp ──
     if (type === "summary") {
-      // Rate limit check
+      // Kiểm tra giới hạn tần suất
       const now = Date.now();
       if (now - lastSentAt < MIN_INTERVAL) {
         const wait = Math.ceil((MIN_INTERVAL - (now - lastSentAt)) / 1000);
@@ -98,7 +99,7 @@ export async function POST(request) {
       return NextResponse.json({ ok: true, message: "Đã gửi báo cáo qua Telegram" });
     }
 
-    // ── Status change notification ──
+    // ── Thông báo thay đổi trạng thái ──
     if (type === "status_change") {
       const { tenChiTiet, noiPhatSinh, tinhTrang, thoiHan, soFiles } = body;
 
@@ -115,9 +116,9 @@ export async function POST(request) {
       return NextResponse.json({ ok: true, message: "Đã gửi thông báo" });
     }
 
-    return NextResponse.json({ ok: false, error: "Invalid type" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Loại không hợp lệ" }, { status: 400 });
   } catch (err) {
-    console.error("Notify error:", err);
+    console.error("Lỗi thông báo:", err);
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
 }

@@ -75,7 +75,7 @@ const BO_PHAN_LIST = [
   { key: "Phôi", label: "Phôi", icon: "📦", gradient: "linear-gradient(135deg, #f472b6 0%, #ec4899 100%)", color: "#9d174d", bgLight: "#fdf2f8" },
 ];
 
-/* ── Parse MM/DD/YYYY → dayjs ── */
+/* ── Phân tích MM/DD/YYYY → dayjs ── */
 function parseEntryDate(val) {
   if (!val) return null;
   const m = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -84,9 +84,9 @@ function parseEntryDate(val) {
   return dayjs(`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`);
 }
 
-/* ── Process: filter entries → group → count ── */
+/* ── Xử lý: lọc mục → nhóm → đếm ── */
 function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search }) {
-  // 1. Flatten all entries
+  // 1. Trải phẳng tất cả mục
   let allEntries = [];
   rows.forEach(group => {
     group.entries.forEach(entry => {
@@ -94,13 +94,13 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
     });
   });
 
-  // 1.5. Only keep entries with da_co_xac_nhan = FALSE
+  // 1.5. Chỉ giữ các mục có da_co_xac_nhan = FALSE
   allEntries = allEntries.filter(e => {
     const v = (e.da_co_xac_nhan || "").toString().trim().toUpperCase();
     return v === "FALSE" || v === "N" || v === "0" || v === "";
   });
 
-  // 2. Filter entries BEFORE grouping
+  // 2. Lọc mục TRƯỚC khi nhóm
   if (boPhan && boPhan !== "all") {
     allEntries = allEntries.filter(e => e.noi_phat_sinh_loi === boPhan);
   }
@@ -134,7 +134,7 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
     );
   }
 
-  // 3. Group by ten_chi_tiet + noi_phat_sinh_loi
+  // 3. Nhóm theo ten_chi_tiet + noi_phat_sinh_loi
   const groups = new Map();
   for (const entry of allEntries) {
     const tenCT = entry._ten_chi_tiet || "";
@@ -145,7 +145,7 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
     groups.get(key).push(entry);
   }
 
-  // 4. Build result, only ≥ minLan
+  // 4. Xây dựng kết quả, chỉ giữ ≥ minLan
   const result = [];
   let idx = 0;
   for (const [key, entries] of groups) {
@@ -155,7 +155,7 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
     const maLoiCount = new Map();
     const dayMaySet = new Set();
     const soFileSet = new Set();
-    // Count unique phieu_bao_loi_id for so_lan_loi
+    // Đếm số phieu_bao_loi_id duy nhất cho so_lan_loi
     const pblIdSet = new Set();
     let noPblCount = 0;
 
@@ -166,12 +166,12 @@ function processOrderData(rows, { minLan, boPhan, filterMaLoi, ngayNhanFrom, nga
       if (e.ma_loi) maLoiCount.set(e.ma_loi, (maLoiCount.get(e.ma_loi) || 0) + 1);
       if (e.day_san_xuat_da_gia_cong_tong_hop_loi) dayMaySet.add(e.day_san_xuat_da_gia_cong_tong_hop_loi);
       if (e._so_file) soFileSet.add(e._so_file);
-      // Track phieu_bao_loi_id
+      // Theo dõi phieu_bao_loi_id
       if (e.phieu_bao_loi_id) pblIdSet.add(e.phieu_bao_loi_id);
       else noPblCount++;
     }
 
-    // so_lan_loi = unique phieu_bao_loi_id + entries without phieu_bao_loi_id
+    // so_lan_loi = số phieu_bao_loi_id duy nhất + số mục không có phieu_bao_loi_id
     const soLanLoi = pblIdSet.size + noPblCount;
     if (soLanLoi < minLan) continue;
 
@@ -220,14 +220,14 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const [ngayBaoLoiFrom, setNgayBaoLoiFrom] = useState(null);
   const [ngayBaoLoiTo, setNgayBaoLoiTo] = useState(null);
 
-  /* ── Password protection ── */
+  /* ── Bảo vệ mật khẩu ── */
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [showPwModal, setShowPwModal] = useState(false);
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState(false);
   const pendingAction = useRef(null);
 
-  /* ── Change password ── */
+  /* ── Đổi mật khẩu ── */
   const [showChangePwModal, setShowChangePwModal] = useState(false);
   const [changePwOld, setChangePwOld] = useState("");
   const [changePwNew, setChangePwNew] = useState("");
@@ -289,12 +289,12 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
 
   const deferredSearch = useDeferredValue(search);
 
-  /* ── Status data (shared via API) ── */
+  /* ── Dữ liệu trạng thái (chia sẻ qua API) ── */
   const [statusData, setStatusData] = useState({});
   const statusRef = useRef(statusData);
   statusRef.current = statusData;
 
-  // Fetch status from server
+  // Tải trạng thái từ server
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/status");
@@ -305,24 +305,24 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
     } catch { /* ignore */ }
   }, []);
 
-  // Load on mount + poll every 5s for other users' changes
+  // Tải khi khởi động + lấy mới mỗi 5 giây cho các thay đổi của người dùng khác
   useEffect(() => {
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
-  // Queue to prevent concurrent writes from overwriting each other
+  // Hàng đợi ghi để tránh các lần ghi đồng thời ghi đè nhau
   const writeQueue = useRef(Promise.resolve());
 
   const updateStatusBatch = useCallback((rowKey, fields) => {
-    // fields is an object like { tinh_trang: "...", ngay_yeu_cau: "..." }
-    // Optimistic update
+    // fields là một object như { tinh_trang: "...", ngay_yeu_cau: "..." }
+    // Cập nhật lạc quan
     setStatusData(prev => {
       const next = { ...prev, [rowKey]: { ...(prev[rowKey] || {}), ...fields } };
       return next;
     });
-    // Persist to server — chain on writeQueue to serialize writes
+    // Lưu vào server — xếp hàng để tuần tự hóa việc ghi
     writeQueue.current = writeQueue.current.then(() =>
       fetch("/api/status", {
         method: "POST",
@@ -336,19 +336,19 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
     updateStatusBatch(rowKey, { [field]: value });
   }, [updateStatusBatch]);
 
-  /* ── All data (no bp/search filter, for unique options) ── */
+  /* ── Tất cả dữ liệu (không lọc bp/search, để lấy tùy chọn duy nhất) ── */
   const allDataForOptions = useMemo(() =>
     processOrderData(rows, { minLan: 1, boPhan: "all", filterMaLoi: null, ngayNhanFrom: null, ngayNhanTo: null, search: "" }),
   [rows]);
 
-  /* ── Unique mã lỗi options ── */
+  /* ── Tùy chọn mã lỗi duy nhất ── */
   const uniqueMaLoi = useMemo(() => {
     const set = new Set();
     allDataForOptions.forEach(r => r.ma_loi_counts.forEach(m => set.add(m.code)));
     return [...set].sort();
   }, [allDataForOptions]);
 
-  /* ── Filtered + grouped data (exclude loại bỏ) ── */
+  /* ── Dữ liệu đã lọc + nhóm (loại trừ loại bỏ) ── */
   const orderRows = useMemo(() => {
     const data = processOrderData(rows, { minLan: minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search: deferredSearch });
     return data.filter(r => {
@@ -357,7 +357,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
     });
   }, [rows, minLanLoi, boPhan, filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, deferredSearch, statusData]);
 
-  /* ── Stats per bộ phận (filtered by date/mã lỗi/search but not boPhan, exclude loại bỏ) ── */
+  /* ── Thống kê theo bộ phận (lọc theo ngày/mã lỗi/tìm kiếm nhưng không theo boPhan, loại trừ loại bỏ) ── */
   const allFilteredNoBp = useMemo(() => {
     const data = processOrderData(rows, { minLan: minLanLoi, boPhan: "all", filterMaLoi, ngayNhanFrom, ngayNhanTo, ngayBaoLoiFrom, ngayBaoLoiTo, search: deferredSearch });
     return data.filter(r => {
@@ -394,7 +394,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
     setNgayBaoLoiTo(null);
   }, []);
 
-  /* ── Export Excel ── */
+  /* ── Xuất Excel ── */
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
@@ -432,7 +432,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
 
   useImperativeHandle(ref, () => ({ exportExcel }), [exportExcel]);
 
-  /* ── Columns ── */
+  /* ── Cột dữ liệu ── */
   const columns = useMemo(() => [
     {
       field: "ten_chi_tiet", headerName: "Tên chi tiết", minWidth: 160, width: 180,
@@ -564,7 +564,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         const val = statusData[key]?.thoi_han;
         const parsedVal = val ? dayjs(val) : null;
 
-        // Check if overdue
+        // Kiểm tra quá hạn
         const isOverdue = parsedVal && parsedVal.isValid() && parsedVal.isBefore(dayjs(), 'day') && statusData[key]?.tinh_trang !== "Hoàn thành báo lỗi";
 
         const doChange = (date) => {
@@ -600,7 +600,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
     },
   ], [statusData, updateStatus, updateStatusBatch, requirePassword, isUnlocked]);
 
-  /* ── Grid sx ── */
+  /* ── Cấu hình giao diện bảng ── */
   const gridSx = {
     border: "none", fontSize: 13,
     fontFamily: "var(--font-inter), Inter, sans-serif",
@@ -705,7 +705,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
                 overflow: "hidden",
               }}
             >
-              {/* Accent bar */}
+              {/* Thanh nhấn màu */}
               <div style={{
                 position: "absolute", top: 0, left: 0, right: 0, height: 3,
                 background: bp.gradient,
@@ -817,7 +817,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         />
       </div>
 
-      {/* ── Password Modal ── */}
+      {/* ── Hộp thoại mật khẩu ── */}
       <Modal
         title={
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -855,7 +855,7 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         </div>
       </Modal>
 
-      {/* ── Change Password Modal ── */}
+      {/* ── Hộp thoại đổi mật khẩu ── */}
       <Modal
         title={
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

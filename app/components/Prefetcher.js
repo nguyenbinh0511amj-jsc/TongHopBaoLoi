@@ -4,11 +4,11 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 /**
- * Prefetch all tables in a single request on app mount.
- * Uses the combined ?multi= endpoint for speed.
+ * Tải trước tất cả bảng trong một yêu cầu khi ứng dụng khởi động.
+ * Sử dụng endpoint gộp ?multi= để tăng tốc.
  */
 async function fetchAllData() {
-  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach,nhan_vien,ke_hoach_pkt_dt,ke_hoach_pkt");
+  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach,nhan_vien,ke_hoach_pkt_dt,ke_hoach_pkt,Giao_Hang_PSX");
   const json = await res.json();
   if (!json.ok) throw new Error("Prefetch failed");
   return {
@@ -19,6 +19,7 @@ async function fetchAllData() {
     nhanVien: json.results?.nhan_vien || [],
     keHoachPktDt: json.results?.ke_hoach_pkt_dt || [],
     keHoachPkt: json.results?.ke_hoach_pkt || [],
+    giaoHangPSX: json.results?.Giao_Hang_PSX || [],
   };
 }
 

@@ -1,4 +1,4 @@
-// AppSheet REST API - CRUD + Stale-While-Revalidate Cache
+// AppSheet REST API - CRUD + Bộ nhớ đệm kiểu Cũ-Trong-Khi-Làm-Mới
 import { NextResponse } from "next/server";
 
 const APP_ID = process.env.APPSHEET_APP_ID;
@@ -10,25 +10,25 @@ function hdrs() {
 }
 
 // ═══════════════════════════════════════════════════════
-// CACHE: Stale-While-Revalidate pattern
-// - Always return cached data instantly (even if stale)
-// - Refresh in background when TTL expires
+// BỘ NHỚ ĐỆM: Mô hình Cũ-Trong-Khi-Làm-Mới
+// - Luôn trả dữ liệu đệm ngay lập tức (kể cả khi đã cũ)
+// - Làm mới ngầm khi hết thời gian sống (TTL)
 // ═══════════════════════════════════════════════════════
-const cache = new Map();        // { table: { data, timestamp } }
-const refreshing = new Set();   // tables currently being refreshed
+const cache = new Map();        // { bảng: { dữ_liệu, thời_điểm } }
+const refreshing = new Set();   // các bảng đang được làm mới
 
 const CACHE_TTL = {
-  san_pham: 10 * 60 * 1000,            // 10 min (rarely changes)
-  thoi_gian_hoan_thanh: 10 * 60 * 1000, // 10 min (49k rows)
+  san_pham: 10 * 60 * 1000,            // 10 phút (ít thay đổi)
+  thoi_gian_hoan_thanh: 10 * 60 * 1000, // 10 phút (49k dòng)
   don_hang: 3 * 60 * 1000,
   tong_hop_loi: 60 * 1000,              // 1 min — cần update nhanh
   so_giao_nhan: 60 * 1000,              // 1 min — cần update nhanh
   xac_nhan_ke_hoach: 3 * 60 * 1000,
-  phieu_bao_loi: 2 * 60 * 1000,        // 2 min
+  phieu_bao_loi: 2 * 60 * 1000,        // 2 phút
   Giao_Hang_PSX: 3 * 60 * 1000,
-  nhan_vien: 10 * 60 * 1000,           // 10 min — rarely changes
-  ke_hoach_pkt_dt: 2 * 60 * 1000,      // 2 min — chi tiết tiến độ QLCL
-  ke_hoach_pkt: 2 * 60 * 1000,          // 2 min — so_file lookup
+  nhan_vien: 10 * 60 * 1000,           // 10 phút — ít thay đổi
+  ke_hoach_pkt_dt: 2 * 60 * 1000,      // 2 phút — chi tiết tiến độ QLCL
+  ke_hoach_pkt: 2 * 60 * 1000,          // 2 phút — tra cứu so_file
 
 };
 const DEFAULT_TTL = 60 * 1000;
@@ -51,7 +51,7 @@ function clearCache(table) {
   else cache.clear();
 }
 
-// Strip heavy columns to reduce JSON payload
+// Loại bỏ các cột nặng để giảm kích thước JSON
 function cleanRows(data) {
   if (!Array.isArray(data)) return data;
   return data.map(row => {
@@ -86,9 +86,9 @@ async function fetchFromAppSheet(table) {
   return res.json();
 }
 
-// Background refresh — non-blocking, deduped
+// Làm mới ngầm — không chặn, tránh trùng lặp
 function backgroundRefresh(table) {
-  if (refreshing.has(table)) return; // already refreshing
+  if (refreshing.has(table)) return; // đang làm mới rồi
   refreshing.add(table);
   fetchFromAppSheet(table)
     .then(data => {
@@ -100,7 +100,7 @@ function backgroundRefresh(table) {
 }
 
 // ═══════════════════════════════════════════════════════
-// Warm-up: pre-load all tables on first request
+// Khởi động nóng: tải trước tất cả bảng khi có yêu cầu đầu tiên
 // ═══════════════════════════════════════════════════════
 let warmedUp = false;
 const ALL_TABLES = [
@@ -108,28 +108,29 @@ const ALL_TABLES = [
   "tong_hop_loi",
   "phieu_bao_loi",
   "xac_nhan_ke_hoach",
+  "Giao_Hang_PSX",
 ];
 
 function warmUpAll() {
   if (warmedUp) return;
   warmedUp = true;
-  // Fetch all tables in parallel — no delay
+  // Tải tất cả bảng song song — không chờ đợi
   ALL_TABLES.forEach(t => {
     if (!cache.has(t)) backgroundRefresh(t);
   });
 }
 
-// Fetch multiple tables in parallel, return combined result
+// Tải nhiều bảng song song, trả kết quả gộp
 async function fetchMultipleTables(tables) {
   const results = {};
   await Promise.all(tables.map(async (t) => {
     const entry = getCacheEntry(t);
     if (entry) {
-      // Return cache, refresh in background if stale
+      // Trả dữ liệu đệm, làm mới ngầm nếu đã cũ
       if (!isFresh(t)) backgroundRefresh(t);
       results[t] = entry.data;
     } else {
-      // No cache — fetch synchronously
+      // Không có đệm — tải đồng bộ
       const data = await fetchFromAppSheet(t);
       const cleaned = cleanRows(data);
       if (Array.isArray(cleaned)) setCache(t, cleaned);
@@ -140,9 +141,9 @@ async function fetchMultipleTables(tables) {
 }
 
 /**
- * GET /api/appsheet?table=don_hang         → SWR cached data
- * GET /api/appsheet?table=don_hang&fresh=1 → Force refresh
- * GET /api/appsheet?tables=1               → Test connection
+ * GET /api/appsheet?table=don_hang         → Dữ liệu đệm SWR
+ * GET /api/appsheet?table=don_hang&fresh=1 → Buộc làm mới
+ * GET /api/appsheet?tables=1               → Kiểm tra kết nối
  */
 export async function GET(request) {
   try {
@@ -159,7 +160,7 @@ export async function GET(request) {
       return NextResponse.json({ status: "ok", appId: APP_ID });
     }
 
-    // ── Combined multi-table fetch: ?multi=tong_hop_loi,so_giao_nhan ──
+    // ── Tải gộp nhiều bảng: ?multi=tong_hop_loi,so_giao_nhan ──
     const multi = searchParams.get("multi");
     if (multi) {
       warmUpAll();
@@ -172,10 +173,10 @@ export async function GET(request) {
       return NextResponse.json({ error: "Thiếu ?table=TenBang" }, { status: 400 });
     }
 
-    // Trigger warm-up of ALL tables on first request
+    // Khởi động nóng TẤT CẢ bảng khi có yêu cầu đầu tiên
     warmUpAll();
 
-    // ── Invalidate: clear cache + force fresh fetch ──
+    // ── Xóa đệm: xóa cache + buộc tải mới ──
     if (invalidate) {
       clearCache(table);
       const data = await fetchFromAppSheet(table);
@@ -190,13 +191,13 @@ export async function GET(request) {
       });
     }
 
-    // ── Stale-While-Revalidate ──
+    // ── Cũ-Trong-Khi-Làm-Mới ──
     const entry = getCacheEntry(table);
 
     if (!fresh && entry) {
-      // Have cached data → return immediately
+      // Có dữ liệu đệm → trả về ngay
       if (!isFresh(table)) {
-        // Stale → trigger background refresh
+        // Đã cũ → kích hoạt làm mới ngầm
         backgroundRefresh(table);
       }
       return NextResponse.json({
@@ -204,7 +205,7 @@ export async function GET(request) {
       });
     }
 
-    // No cache or forced fresh → fetch synchronously
+    // Không có đệm hoặc buộc làm mới → tải đồng bộ
     const data = await fetchFromAppSheet(table);
     const cleaned = cleanRows(data);
     if (Array.isArray(cleaned)) setCache(table, cleaned);
@@ -216,7 +217,7 @@ export async function GET(request) {
       cached: false,
     });
   } catch (error) {
-    // On error, still return stale cache if available
+    // Khi lỗi, vẫn trả dữ liệu đệm cũ nếu có
     const url = new URL(request.url);
     const fallbackTable = url.searchParams?.get?.("table");
     const entry = fallbackTable ? getCacheEntry(fallbackTable) : null;
@@ -233,6 +234,7 @@ export async function GET(request) {
 /**
  * POST /api/appsheet
  * { table, action: "Add"|"Edit"|"Delete"|"Find", rows, selector }
+ * Thêm / Sửa / Xóa / Tìm kiếm dữ liệu trên AppSheet
  */
 export async function POST(request) {
   try {
@@ -240,7 +242,7 @@ export async function POST(request) {
     const { table, action = "Find", rows = [], selector } = body;
 
     if (!table) return NextResponse.json({ error: "Thiếu 'table'" }, { status: 400 });
-    if (!APP_ID || !ACCESS_KEY) return NextResponse.json({ error: "Thiếu credentials" }, { status: 500 });
+    if (!APP_ID || !ACCESS_KEY) return NextResponse.json({ error: "Thiếu thông tin xác thực" }, { status: 500 });
 
     const payload = {
       Action: action,
@@ -262,7 +264,7 @@ export async function POST(request) {
 
     const data = await res.json();
 
-    // Clear cache + trigger background refresh after mutation
+    // Xóa đệm + kích hoạt làm mới ngầm sau khi thay đổi dữ liệu
     if (["Add", "Edit", "Delete"].includes(action)) {
       clearCache(table);
       backgroundRefresh(table);
