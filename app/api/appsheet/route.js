@@ -24,7 +24,6 @@ const CACHE_TTL = {
   tong_hop_loi: 60 * 1000,              // 1 min — cần update nhanh
   so_giao_nhan: 60 * 1000,              // 1 min — cần update nhanh
   xac_nhan_ke_hoach: 3 * 60 * 1000,
-  phieu_bao_loi: 2 * 60 * 1000,        // 2 phút
   Giao_Hang_PSX: 3 * 60 * 1000,
   nhan_vien: 10 * 60 * 1000,           // 10 phút — ít thay đổi
   ke_hoach_pkt_dt: 2 * 60 * 1000,      // 2 phút — chi tiết tiến độ QLCL
@@ -83,7 +82,17 @@ async function fetchFromAppSheet(table) {
     const err = await res.text();
     throw new Error(`AppSheet lỗi ${res.status}: ${err}`);
   }
-  return res.json();
+  const text = await res.text();
+  if (!text || text.trim() === "") {
+    console.warn(`[AppSheet API] Bảng '${table}' trả về phản hồi rỗng.`);
+    return [];
+  }
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    console.error(`[AppSheet API] Lỗi parse JSON cho bảng '${table}':`, err.message);
+    return [];
+  }
 }
 
 // Làm mới ngầm — không chặn, tránh trùng lặp
@@ -106,7 +115,6 @@ let warmedUp = false;
 const ALL_TABLES = [
   "so_giao_nhan",
   "tong_hop_loi",
-  "phieu_bao_loi",
   "xac_nhan_ke_hoach",
   "Giao_Hang_PSX",
 ];
@@ -124,17 +132,22 @@ function warmUpAll() {
 async function fetchMultipleTables(tables) {
   const results = {};
   await Promise.all(tables.map(async (t) => {
-    const entry = getCacheEntry(t);
-    if (entry) {
-      // Trả dữ liệu đệm, làm mới ngầm nếu đã cũ
-      if (!isFresh(t)) backgroundRefresh(t);
-      results[t] = entry.data;
-    } else {
-      // Không có đệm — tải đồng bộ
-      const data = await fetchFromAppSheet(t);
-      const cleaned = cleanRows(data);
-      if (Array.isArray(cleaned)) setCache(t, cleaned);
-      results[t] = cleaned;
+    try {
+      const entry = getCacheEntry(t);
+      if (entry) {
+        // Trả dữ liệu đệm, làm mới ngầm nếu đã cũ
+        if (!isFresh(t)) backgroundRefresh(t);
+        results[t] = entry.data;
+      } else {
+        // Không có đệm — tải đồng bộ
+        const data = await fetchFromAppSheet(t);
+        const cleaned = cleanRows(data);
+        if (Array.isArray(cleaned)) setCache(t, cleaned);
+        results[t] = cleaned || [];
+      }
+    } catch (err) {
+      console.error(`[fetchMultipleTables] Lỗi khi tải bảng '${t}':`, err.message);
+      results[t] = [];
     }
   }));
   return results;

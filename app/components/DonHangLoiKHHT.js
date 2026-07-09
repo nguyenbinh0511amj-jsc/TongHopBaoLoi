@@ -25,7 +25,7 @@ function normalizeND(s) {
  * 3. Với mỗi dòng xac_nhan_ke_hoach, tra cứu phiếu tương ứng → chi tiết lỗi
  * 4. Chỉ giữ lại các dòng có ít nhất 1 phiếu
  */
-function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX) {
+function buildData(xacNhanKeHoach, tongHopLoi, giaoHangPSX) {
   // 0. Tạo bảng tra cứu: order_kd → { ngay_giao, sl_da_xac_nhan, noi_dung_da_xac_nhan } từ Giao_Hang_PSX
   const ghpsxLookup = new Map();
   for (const r of giaoHangPSX) {
@@ -37,17 +37,8 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX) {
       });
     }
   }
-  // 1. Đánh chỉ mục tong_hop_loi theo phieu_bao_loi_id
-  const thlByPbl = new Map();
-  for (const row of tongHopLoi) {
-    const pid = row.phieu_bao_loi_id;
-    if (!pid) continue;
-    if (!thlByPbl.has(pid)) thlByPbl.set(pid, []);
-    thlByPbl.get(pid).push(row);
-  }
 
   // Đếm số lần lỗi cho mỗi nội dung lỗi theo tên chi tiết
-  // Đếm trực tiếp từ trường ten_chi_tiet trong tong_hop_loi (không cần phieu_bao_loi_id)
   const noiDungCountMap = new Map();
   for (const r of tongHopLoi) {
     const tc = (r.ten_chi_tiet || "").trim();
@@ -57,26 +48,45 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX) {
     noiDungCountMap.set(ck, (noiDungCountMap.get(ck) || 0) + 1);
   }
 
-  // 2. Nhóm phieu_bao_loi theo (order_pbl, ten_chi_tiet_pbl) và gắn nội dung
+  // 1. Nhóm tong_hop_loi theo phieu_bao_loi_id để tạo các phiếu ảo
+  const pblMap = new Map(); // phieu_bao_loi_id -> { rows: [], order_kd, ten_chi_tiet, ngay_bao_loi, trang_thai }
+  let virtualIdCounter = 1;
+
+  for (const row of tongHopLoi) {
+    let pid = row.phieu_bao_loi_id;
+    if (!pid) {
+      pid = `VIRTUAL_PBL_${virtualIdCounter++}`;
+    }
+    if (!pblMap.has(pid)) {
+      pblMap.set(pid, {
+        rows: [],
+        order_kd: (row.order_kd || "").trim(),
+        ten_chi_tiet: (row.ten_chi_tiet || "").trim(),
+        ngay_bao_loi: row.ngay_bao_loi || "",
+        trang_thai: row.trang_thai || "",
+      });
+    }
+    pblMap.get(pid).rows.push(row);
+  }
+
+  // 2. Nhóm phiếu theo (order, ten_chi_tiet)
   const pblByOrder = new Map(); // khóa: "order|ten_chi_tiet" → [{ phieu, noiDungs }]
-  for (const pbl of phieuBaoLoi) {
-    const order = (pbl.order_pbl || "").trim();
-    const tenCT = (pbl.ten_chi_tiet_pbl || "").trim();
+  for (const [pid, pInfo] of pblMap.entries()) {
+    const order = pInfo.order_kd;
+    const tenCT = pInfo.ten_chi_tiet;
     if (!order || !tenCT) continue;
     const key = `${order}|||${tenCT}`;
     if (!pblByOrder.has(key)) pblByOrder.set(key, []);
 
-    // Lấy nội dung lỗi cho phiếu này
-    const noiDungs = thlByPbl.get(pbl.ID_pbl) || [];
+    const tong_sl_bao_loi = pInfo.rows.reduce((s, r) => s + (Number(r.sl_loi) || 0), 0);
 
     pblByOrder.get(key).push({
-      ID_pbl: pbl.ID_pbl,
-      ngay_bao_loi: pbl.ngay_bao_loi_pbl || "",
-      trang_thai: pbl.trang_thai_pbl || "",
-      tong_sl_bao_loi: Number(pbl.tong_sl_bao_loi_pbl) || 0,
-      noiDungs: noiDungs.map(nd => {
+      ID_pbl: pid,
+      ngay_bao_loi: pInfo.ngay_bao_loi || "",
+      trang_thai: pInfo.trang_thai || "",
+      tong_sl_bao_loi,
+      noiDungs: pInfo.rows.map(nd => {
         const ndNorm = normalizeND(nd.noi_dung_loi);
-        const tenCT = (pbl.ten_chi_tiet_pbl || "").trim();
         const ck = `${tenCT}|||${ndNorm}`;
         return {
           noi_dung_loi: nd.noi_dung_loi || "",
@@ -124,7 +134,6 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX) {
     // Tổng sl_bao_loi
     const tongSlBaoLoi = allNoiDungs.reduce((s, nd) => s + nd.sl_loi, 0);
 
-
     result.push({
       stt: kh.stt || "",
       order_kd: order,
@@ -159,13 +168,13 @@ function buildData(xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX) {
 }
 
 /* ════════════════════════════════════════ */
-export default function DonHangLoiKHHT({ xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX, isLoading }) {
+export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX, isLoading }) {
   const [search, setSearch] = useState("");
   const [minLoi, setMinLoi] = useState(1);
 
   const { rows: allRows, maxPhieu } = useMemo(
-    () => buildData(xacNhanKeHoach || [], phieuBaoLoi || [], tongHopLoi || [], giaoHangPSX || []),
-    [xacNhanKeHoach, phieuBaoLoi, tongHopLoi, giaoHangPSX]
+    () => buildData(xacNhanKeHoach || [], tongHopLoi || [], giaoHangPSX || []),
+    [xacNhanKeHoach, tongHopLoi, giaoHangPSX]
   );
 
   const filteredRows = useMemo(() => {

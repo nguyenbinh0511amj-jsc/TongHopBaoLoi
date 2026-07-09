@@ -59,13 +59,12 @@ async function fetchSoGiaoNhan() {
 
 /* ── Tải gộp dữ liệu: 1 yêu cầu cho tất cả bảng ── */
 async function fetchAllData() {
-  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,phieu_bao_loi,xac_nhan_ke_hoach,nhan_vien,ke_hoach_pkt_dt,ke_hoach_pkt,Giao_Hang_PSX");
+  const res = await fetch("/api/appsheet?multi=tong_hop_loi,so_giao_nhan,xac_nhan_ke_hoach,nhan_vien,ke_hoach_pkt_dt,ke_hoach_pkt,Giao_Hang_PSX");
   const json = await res.json();
   if (!json.ok) throw new Error("Fetch failed");
   return {
     loi: json.results?.tong_hop_loi || [],
     sgn: json.results?.so_giao_nhan || [],
-    pbl: json.results?.phieu_bao_loi || [],
     khht: json.results?.xac_nhan_ke_hoach || [],
     nhanVien: json.results?.nhan_vien || [],
     keHoachPktDt: json.results?.ke_hoach_pkt_dt || [],
@@ -384,7 +383,6 @@ export default function TongHopThongKeLoiPage() {
 
   const rawLoi = allData?.loi || [];
   const rawSGN = allData?.sgn || [];
-  const rawPBL = allData?.pbl || [];
   const rawKHHT = allData?.khht || [];
   const rawNV = allData?.nhanVien || [];
   const rawKHPKTDT = allData?.keHoachPktDt || [];
@@ -1219,7 +1217,7 @@ export default function TongHopThongKeLoiPage() {
         <TheoDoiDonHang rows={processed} isLoading={isLoading} isFiltering={false} />
       ) : activeTab === "khht" ? (
         /* Tổng hợp đơn hàng lỗi trên KHHT */
-        <DonHangLoiKHHT xacNhanKeHoach={rawKHHT} phieuBaoLoi={rawPBL} tongHopLoi={rawLoi} giaoHangPSX={rawGHPSX} isLoading={isLoading} />
+        <DonHangLoiKHHT xacNhanKeHoach={rawKHHT} tongHopLoi={rawLoi} giaoHangPSX={rawGHPSX} isLoading={isLoading} />
       ) : activeTab === "qlcl" ? (
         /* Theo dõi tiến độ QLCL */
         <TheoDoiQLCL nhanVien={rawNV} keHoachPktDt={rawKHPKTDT} keHoachPkt={rawKHPKT} isLoading={isLoading} />
