@@ -203,24 +203,34 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
     const ws = wb.addWorksheet("Đơn hàng lỗi KHHT");
     const FIXED_COUNT = 11;
 
-    // ── Dòng tiêu đề 1: cố định + gộp "Phiếu N" ──
+    // ── Dòng 1: "List họp DD/MM/YYYY" ──
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, "0");
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const yyyy = now.getFullYear();
+    const titleRow = ws.addRow([`List họp ${dd}/${mm}/${yyyy}`]);
+    titleRow.getCell(1).font = { bold: true, size: 13 };
+    titleRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+    titleRow.height = 26;
+
+    // ── Dòng tiêu đề 2: cố định + gộp "Phiếu N" ──
     const h1 = ["STT", "Order KD", "Tên chi tiết", "File GC", "Số lượng", "TT ưu tiên", "Xác nhận cũ", "Xác nhận mới", "Ngày giao hàng", "SL đã xác nhận khi giao hàng", "Nội dung đã xác nhận khi giao hàng"];
     for (let i = 0; i < displayMaxPhieu; i++) h1.push(`Phiếu ${i + 1}`, "", "", "", "");
     ws.addRow(h1);
 
-    // ── Dòng tiêu đề 2: tiêu đề phụ ──
+    // ── Dòng tiêu đề 3: tiêu đề phụ ──
     const h2 = ["", "", "", "", "", "", "", "", "", "", ""];
     for (let i = 0; i < displayMaxPhieu; i++) h2.push("Nội dung lỗi", "SL", "Nơi phát sinh", "Nơi xử lý lỗi", "Số lần lỗi");
     ws.addRow(h2);
 
-    // Gộp tiêu đề cố định theo chiều dọc (dòng 1-2)
+    // Gộp tiêu đề cố định theo chiều dọc (dòng 2-3)
     for (let c = 1; c <= FIXED_COUNT; c++) {
-      ws.mergeCells(1, c, 2, c);
+      ws.mergeCells(2, c, 3, c);
     }
     // Gộp "Phiếu N" theo chiều ngang (mỗi phiếu 5 cột)
     for (let i = 0; i < displayMaxPhieu; i++) {
       const startCol = FIXED_COUNT + 1 + i * 5;
-      ws.mergeCells(1, startCol, 1, startCol + 4);
+      ws.mergeCells(2, startCol, 2, startCol + 4);
     }
 
     // Định dạng tiêu đề
@@ -233,7 +243,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
         left: { style: "thin" }, right: { style: "thin" },
       },
     };
-    [1, 2].forEach(rowNum => {
+    [2, 3].forEach(rowNum => {
       const row = ws.getRow(rowNum);
       row.eachCell({ includeEmpty: true }, cell => {
         cell.font = headerStyle.font;
@@ -249,8 +259,8 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
       const startCol = FIXED_COUNT + 1 + i * 5;
       const color = i % 2 === 0 ? "FFDBEAFE" : "FFFCE7F3";
       for (let c = startCol; c <= startCol + 4; c++) {
-        ws.getCell(1, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
         ws.getCell(2, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
+        ws.getCell(3, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
       }
     }
 
