@@ -229,7 +229,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
 
   /* ── Dòng đã lọc ── */
   const filteredRows = useMemo(() => {
-    let data = reportRows;
+    let data = reportRows.filter(r => !r.loai_bo); // Ẩn các mục đã đánh dấu loại bỏ
     if (filterBoPhan) data = data.filter(r => r.noi_phat_sinh === filterBoPhan);
     if (filterStatus) data = data.filter(r => r.tinh_trang === filterStatus);
     if (search.trim()) {
@@ -241,19 +241,20 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
 
   /* ── Thống kê ── */
   const stats = useMemo(() => {
-    const total = reportRows.length;
-    const yeuCau = reportRows.filter(r => r.tinh_trang === "Yêu cầu báo lỗi").length;
-    const hoanThanh = reportRows.filter(r => r.tinh_trang === "Hoàn thành báo lỗi").length;
-    const quaHan = reportRows.filter(r => r.trang_thai_thoi_han === "Quá hạn").length;
-    const treHan = reportRows.filter(r => r.trang_thai_thoi_han === "Trễ hạn").length;
-    const dungHan = reportRows.filter(r => r.trang_thai_thoi_han === "Đúng hạn").length;
-    const trongHan = reportRows.filter(r => r.trang_thai_thoi_han === "Trong hạn").length;
-    const chuaCoThoiHan = reportRows.filter(r => !r.trang_thai_thoi_han).length;
+    const activeRows = reportRows.filter(r => !r.loai_bo); // Không tính các mục đã loại bỏ
+    const total = activeRows.length;
+    const yeuCau = activeRows.filter(r => r.tinh_trang === "Yêu cầu báo lỗi").length;
+    const hoanThanh = activeRows.filter(r => r.tinh_trang === "Hoàn thành báo lỗi").length;
+    const quaHan = activeRows.filter(r => r.trang_thai_thoi_han === "Quá hạn").length;
+    const treHan = activeRows.filter(r => r.trang_thai_thoi_han === "Trễ hạn").length;
+    const dungHan = activeRows.filter(r => r.trang_thai_thoi_han === "Đúng hạn").length;
+    const trongHan = activeRows.filter(r => r.trang_thai_thoi_han === "Trong hạn").length;
+    const chuaCoThoiHan = activeRows.filter(r => !r.trang_thai_thoi_han).length;
 
     // Thống kê theo bộ phận
     const byBoPhan = {};
     for (const bp of Object.keys(BO_PHAN_CONFIG)) {
-      const bpRows = reportRows.filter(r => r.noi_phat_sinh === bp);
+      const bpRows = activeRows.filter(r => r.noi_phat_sinh === bp);
       byBoPhan[bp] = {
         total: bpRows.length,
         yeuCau: bpRows.filter(r => r.tinh_trang === "Yêu cầu báo lỗi").length,

@@ -294,12 +294,18 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
   const statusRef = useRef(statusData);
   statusRef.current = statusData;
 
+  // Đếm số lần ghi đang chờ — ngăn fetchStatus ghi đè dữ liệu lạc quan
+  const writeInFlight = useRef(0);
+
   // Tải trạng thái từ server
   const fetchStatus = useCallback(async () => {
+    // Không fetch khi đang có write pending — tránh ghi đè dữ liệu lạc quan
+    if (writeInFlight.current > 0) return;
     try {
       const res = await fetch("/api/status");
       const json = await res.json();
-      if (json.ok && json.data) {
+      // Kiểm tra lại sau khi fetch xong — có thể write mới bắt đầu trong lúc chờ
+      if (json.ok && json.data && writeInFlight.current === 0) {
         setStatusData(json.data);
       }
     } catch { /* ignore */ }
@@ -322,13 +328,31 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
       const next = { ...prev, [rowKey]: { ...(prev[rowKey] || {}), ...fields } };
       return next;
     });
+    // Đánh dấu đang ghi — ngăn fetchStatus ghi đè
+    writeInFlight.current += 1;
     // Lưu vào server — xếp hàng để tuần tự hóa việc ghi
     writeQueue.current = writeQueue.current.then(() =>
       fetch("/api/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ merge: { [rowKey]: fields } }),
-      }).catch(() => { /* ignore */ })
+      })
+        .then(async (res) => {
+          writeInFlight.current -= 1;
+          // Sau khi ghi xong, nếu không còn write nào đang chờ → fetch dữ liệu mới nhất
+          if (writeInFlight.current === 0) {
+            try {
+              const freshRes = await fetch("/api/status");
+              const freshJson = await freshRes.json();
+              if (freshJson.ok && freshJson.data && writeInFlight.current === 0) {
+                setStatusData(freshJson.data);
+              }
+            } catch { /* ignore */ }
+          }
+        })
+        .catch(() => {
+          writeInFlight.current -= 1;
+        })
     );
   }, []);
 
