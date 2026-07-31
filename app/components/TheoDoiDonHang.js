@@ -574,11 +574,29 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
       },
     },
     {
-      field: "ngay_yeu_cau", headerName: "Ngày yêu cầu", minWidth: 120, width: 120, sortable: false, align: "center", headerAlign: "center",
+      field: "ngay_yeu_cau", headerName: "Ngày yêu cầu", minWidth: 145, width: 145, sortable: false, align: "center", headerAlign: "center",
       renderCell: (p) => {
         const key = `${p.row.ten_chi_tiet}|||${p.row.noi_phat_sinh}`;
         const val = statusData[key]?.ngay_yeu_cau;
-        return <span style={{ fontSize: 12, color: val ? "#1e293b" : "#d1d5db" }}>{val ? dayjs(val).format("DD/MM/YYYY") : "—"}</span>;
+        const parsedVal = val ? dayjs(val) : null;
+
+        const doChange = (date) => {
+          updateStatus(key, "ngay_yeu_cau", date ? date.format("YYYY-MM-DD") : null);
+        };
+
+        return (
+          <DatePicker
+            size="small"
+            value={parsedVal && parsedVal.isValid() ? parsedVal : null}
+            onChange={date => requirePassword(() => doChange(date))}
+            format="DD/MM/YYYY"
+            placeholder={isUnlocked ? "Chọn..." : "🔒"}
+            allowClear
+            onClear={() => requirePassword(() => doChange(null))}
+            onClick={e => e.stopPropagation()}
+            style={{ width: "100%" }}
+          />
+        );
       },
     },
     {
@@ -615,11 +633,29 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
       },
     },
     {
-      field: "ngay_hoan_thanh", headerName: "Ngày hoàn thành", minWidth: 145, width: 145, sortable: false, align: "center", headerAlign: "center",
+      field: "ngay_hoan_thanh", headerName: "Ngày hoàn thành", minWidth: 155, width: 155, sortable: false, align: "center", headerAlign: "center",
       renderCell: (p) => {
         const key = `${p.row.ten_chi_tiet}|||${p.row.noi_phat_sinh}`;
         const val = statusData[key]?.ngay_hoan_thanh;
-        return <span style={{ fontSize: 12, color: val ? "#059669" : "#d1d5db", fontWeight: val ? 600 : 400 }}>{val ? dayjs(val).format("DD/MM/YYYY") : "—"}</span>;
+        const parsedVal = val ? dayjs(val) : null;
+
+        const doChange = (date) => {
+          updateStatus(key, "ngay_hoan_thanh", date ? date.format("YYYY-MM-DD") : null);
+        };
+
+        return (
+          <DatePicker
+            size="small"
+            value={parsedVal && parsedVal.isValid() ? parsedVal : null}
+            onChange={date => requirePassword(() => doChange(date))}
+            format="DD/MM/YYYY"
+            placeholder={isUnlocked ? "Chọn..." : "🔒"}
+            allowClear
+            onClear={() => requirePassword(() => doChange(null))}
+            onClick={e => e.stopPropagation()}
+            style={{ width: "100%" }}
+          />
+        );
       },
     },
   ], [statusData, updateStatus, updateStatusBatch, requirePassword, isUnlocked]);
