@@ -606,8 +606,12 @@ const TheoDoiDonHang = forwardRef(function TheoDoiDonHang({ rows, isLoading, isF
         const val = statusData[key]?.thoi_han;
         const parsedVal = val ? dayjs(val) : null;
 
-        // Kiểm tra quá hạn
-        const isOverdue = parsedVal && parsedVal.isValid() && parsedVal.isBefore(dayjs(), 'day') && statusData[key]?.tinh_trang !== "Hoàn thành báo lỗi";
+        // Kiểm tra quá hạn: không quá hạn nếu đã hoàn thành hoặc có ngày hoàn thành <= thời hạn
+        const ngayHT = statusData[key]?.ngay_hoan_thanh ? dayjs(statusData[key].ngay_hoan_thanh) : null;
+        const hasValidCompletion = ngayHT && ngayHT.isValid();
+        const isOverdue = parsedVal && parsedVal.isValid() && parsedVal.isBefore(dayjs(), 'day')
+          && statusData[key]?.tinh_trang !== "Hoàn thành báo lỗi"
+          && !(hasValidCompletion && !ngayHT.isAfter(parsedVal, 'day'));
 
         const doChange = (date) => {
           updateStatus(key, "thoi_han", date ? date.format("YYYY-MM-DD") : null);

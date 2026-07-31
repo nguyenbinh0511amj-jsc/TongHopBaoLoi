@@ -152,13 +152,14 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
       // Xác định trạng thái quá hạn
       let trangThaiThoiHan = null;
       if (thoiHan && thoiHan.isValid()) {
-        if (data.tinh_trang === "Hoàn thành báo lỗi") {
-          if (ngayHoanThanh && ngayHoanThanh.isValid()) {
-            trangThaiThoiHan = ngayHoanThanh.isAfter(thoiHan, "day") ? "Trễ hạn" : "Đúng hạn";
-          } else {
-            trangThaiThoiHan = "Đúng hạn";
-          }
+        if (ngayHoanThanh && ngayHoanThanh.isValid()) {
+          // Đã có ngày hoàn thành → so sánh với thời hạn
+          trangThaiThoiHan = ngayHoanThanh.isAfter(thoiHan, "day") ? "Trễ hạn" : "Đúng hạn";
+        } else if (data.tinh_trang === "Hoàn thành báo lỗi") {
+          // Hoàn thành nhưng không có ngày cụ thể → mặc định đúng hạn
+          trangThaiThoiHan = "Đúng hạn";
         } else {
+          // Chưa hoàn thành → so sánh thời hạn với ngày hiện tại
           trangThaiThoiHan = thoiHan.isBefore(dayjs(), "day") ? "Quá hạn" : "Trong hạn";
         }
       }
