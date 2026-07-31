@@ -215,12 +215,12 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
 
     // ── Dòng tiêu đề 2: cố định + gộp "Phiếu N" ──
     const h1 = ["STT", "Order KD", "Tên chi tiết", "File GC", "Số lượng", "TT ưu tiên", "Xác nhận cũ", "Xác nhận mới", "Ngày giao hàng", "SL đã xác nhận khi giao hàng", "Nội dung đã xác nhận khi giao hàng"];
-    for (let i = 0; i < displayMaxPhieu; i++) h1.push(`Phiếu ${i + 1}`, "");
+    for (let i = 0; i < displayMaxPhieu; i++) h1.push(`Phiếu ${i + 1}`, "", "", "", "");
     ws.addRow(h1);
 
     // ── Dòng tiêu đề 3: tiêu đề phụ ──
     const h2 = ["", "", "", "", "", "", "", "", "", "", ""];
-    for (let i = 0; i < displayMaxPhieu; i++) h2.push("Nội dung lỗi", "SL");
+    for (let i = 0; i < displayMaxPhieu; i++) h2.push("Nội dung lỗi", "SL", "Nơi phát sinh", "Nơi xử lý lỗi", "Số lần lỗi");
     ws.addRow(h2);
 
     // Gộp tiêu đề cố định theo chiều dọc (dòng 2-3)
@@ -229,8 +229,8 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
     }
     // Gộp "Phiếu N" theo chiều ngang (mỗi phiếu 2 cột)
     for (let i = 0; i < displayMaxPhieu; i++) {
-      const startCol = FIXED_COUNT + 1 + i * 2;
-      ws.mergeCells(2, startCol, 2, startCol + 1);
+      const startCol = FIXED_COUNT + 1 + i * 5;
+      ws.mergeCells(2, startCol, 2, startCol + 4);
     }
 
     // Định dạng tiêu đề
@@ -256,9 +256,9 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
 
     // Màu nền tiêu đề phiếu (xen kẽ)
     for (let i = 0; i < displayMaxPhieu; i++) {
-      const startCol = FIXED_COUNT + 1 + i * 2;
+      const startCol = FIXED_COUNT + 1 + i * 5;
       const color = i % 2 === 0 ? "FFDBEAFE" : "FFFCE7F3";
-      for (let c = startCol; c <= startCol + 1; c++) {
+      for (let c = startCol; c <= startCol + 4; c++) {
         ws.getCell(2, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
         ws.getCell(3, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
       }
@@ -283,10 +283,13 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
       { horizontal: "center", vertical: "middle", wrapText: true }, // SL đã xác nhận khi giao hàng
       { horizontal: "left", vertical: "top", wrapText: true },      // Nội dung đã xác nhận khi giao hàng
     ];
-    // Căn chỉnh theo cột phụ của phiếu: [Nội dung lỗi, SL]
+    // Căn chỉnh theo cột phụ của phiếu: [Nội dung lỗi, SL, Nơi phát sinh, Nơi xử lý lỗi, Số lần lỗi]
     const phieuAlign = [
       { horizontal: "left", vertical: "top", wrapText: true },      // Nội dung lỗi
       { horizontal: "center", vertical: "top", wrapText: true },    // SL
+      { horizontal: "center", vertical: "top", wrapText: true },    // Nơi phát sinh
+      { horizontal: "center", vertical: "top", wrapText: true },    // Nơi xử lý lỗi
+      { horizontal: "center", vertical: "top", wrapText: true },    // Số lần lỗi
     ];
 
     filteredRows.forEach((r, idx) => {
@@ -311,11 +314,14 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
           const nds = p.noiDungs.filter(nd => nd.noi_dung_loi);
           const ndText = nds.map(nd => nd.noi_dung_loi).join("\n");
           const slText = nds.map(nd => String(nd.sl_loi)).join("\n");
+          const npsText = nds.map(nd => nd.noi_phat_sinh || "").join("\n");
+          const nxlText = nds.map(nd => nd.noi_xu_ly_loi || "").join("\n");
+          const sllText = nds.map(nd => nd.so_lan ? `${nd.so_lan} lần` : "").join("\n");
 
-          rowData.push(ndText, slText);
+          rowData.push(ndText, slText, npsText, nxlText, sllText);
           if (nds.length > maxLines) maxLines = nds.length;
         } else {
-          rowData.push("", "");
+          rowData.push("", "", "", "", "");
         }
       }
 
@@ -330,8 +336,8 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
         if (colNumber <= FIXED_COUNT) {
           cell.alignment = fixedAlign[colNumber - 1] || fixedAlign[0];
         } else {
-          // Chỉ mục cột phụ phiếu: 0=Nội dung, 1=SL
-          const subIdx = (colNumber - FIXED_COUNT - 1) % 2;
+          // Chỉ mục cột phụ phiếu: 0=Nội dung, 1=SL, 2=Nơi phát sinh, 3=Nơi xử lý lỗi, 4=Số lần lỗi
+          const subIdx = (colNumber - FIXED_COUNT - 1) % 5;
           cell.alignment = phieuAlign[subIdx];
         }
       });
@@ -340,9 +346,9 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
       for (let i = 0; i < displayMaxPhieu; i++) {
         const p = r.phieus[i];
         if (p && p.noiDungs.length > 0) {
-          const startCol = FIXED_COUNT + 1 + i * 2;
+          const startCol = FIXED_COUNT + 1 + i * 5;
           const color = "FFFFFDE7";
-          for (let c = startCol; c <= startCol + 1; c++) {
+          for (let c = startCol; c <= startCol + 4; c++) {
             excelRow.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
           }
         }
@@ -352,7 +358,7 @@ export default function DonHangLoiKHHT({ xacNhanKeHoach, tongHopLoi, giaoHangPSX
     // ── Độ rộng cột ──
     const colWidths = [4, 12, 15, 8, 8, 9, 14, 16, 14, 12, 22];
     for (let i = 0; i < displayMaxPhieu; i++) {
-      colWidths.push(18, 4); // Nội dung lỗi, SL
+      colWidths.push(18, 4, 12, 12, 10); // Nội dung lỗi, SL, Nơi phát sinh, Nơi xử lý lỗi, Số lần lỗi
     }
     colWidths.forEach((w, i) => {
       ws.getColumn(i + 1).width = w;
