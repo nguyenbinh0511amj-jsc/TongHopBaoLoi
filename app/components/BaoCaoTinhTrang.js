@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { viVN } from "@mui/x-data-grid/locales";
-import { Input, Select, Button, Tag, Tooltip, Modal, Checkbox, App as AntApp } from "antd";
+import { Input, Select, Button, Tag, Tooltip, Modal, Checkbox, App as AntApp, AutoComplete } from "antd";
 import { SearchOutlined, ClearOutlined, DownloadOutlined, LockOutlined, UnlockOutlined, FullscreenOutlined, FullscreenExitOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -56,6 +56,70 @@ function getDayMayColor(val) {
 }
 
 /* ════════════════════════════════════════ */
+
+/* ── Component input ghi chú: AutoComplete + debounce auto-save ── */
+function GhiChuInput({ value: externalValue, rowKey, onSave, options }) {
+  const [localVal, setLocalVal] = useState(externalValue || "");
+  const lastExternal = useRef(externalValue);
+  const debounceTimer = useRef(null);
+
+  // Đồng bộ khi giá trị từ ngoài thay đổi (ví dụ: fetch từ server)
+  if (externalValue !== lastExternal.current) {
+    lastExternal.current = externalValue;
+    if (externalValue !== localVal) {
+      setLocalVal(externalValue || "");
+    }
+  }
+
+  const scheduleAutoSave = useCallback((val) => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      onSave(rowKey, "ghi_chu", val || null);
+    }, 800);
+  }, [rowKey, onSave]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
+
+  const handleChange = (val) => {
+    setLocalVal(val);
+    scheduleAutoSave(val);
+  };
+
+  const handleSelect = (val) => {
+    setLocalVal(val);
+    // Lưu ngay khi chọn từ dropdown
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    onSave(rowKey, "ghi_chu", val || null);
+  };
+
+  return (
+    <AutoComplete
+      size="small"
+      value={localVal}
+      options={options}
+      placeholder="Nhập ghi chú..."
+      onChange={handleChange}
+      onSelect={handleSelect}
+      onKeyDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
+      style={{ width: "100%", fontSize: 12 }}
+      allowClear
+      onClear={() => {
+        setLocalVal("");
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        onSave(rowKey, "ghi_chu", null);
+      }}
+      filterOption={(input, option) =>
+        (option?.value || "").toLowerCase().includes(input.toLowerCase())
+      }
+    />
+  );
+}
 export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const { message } = AntApp.useApp();
   const [statusData, setStatusData] = useState({});
@@ -199,6 +263,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         ngay_yeu_cau: data.ngay_yeu_cau || null,
         thoi_han: data.thoi_han || null,
         ngay_hoan_thanh: data.ngay_hoan_thanh || null,
+        ghi_chu: data.ghi_chu || "",
         loai_bo: data.loai_bo || false,
         trang_thai_thoi_han: trangThaiThoiHan,
         so_lan_loi: matchedRow?.so_lan_loi || null,
@@ -240,6 +305,17 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
     return data;
   }, [reportRows, filterBoPhan, filterStatus, search]);
 
+  /* ── Danh sách ghi chú đã nhập (cho AutoComplete dropdown) ── */
+  const ghiChuOptions = useMemo(() => {
+    const set = new Set();
+    for (const data of Object.values(statusData)) {
+      if (data.ghi_chu && typeof data.ghi_chu === "string" && data.ghi_chu.trim()) {
+        set.add(data.ghi_chu.trim());
+      }
+    }
+    return [...set].sort().map(v => ({ value: v, label: v }));
+  }, [statusData]);
+
   /* ── Thống kê ── */
   const stats = useMemo(() => {
     const activeRows = reportRows.filter(r => !r.loai_bo); // Không tính các mục đã loại bỏ
@@ -271,7 +347,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
   const exportExcel = useCallback(() => {
     import("xlsx").then(XLSX => {
       const wb = XLSX.utils.book_new();
-      const headers = ["STT", "Tên chi tiết", "Số file", "Vị trí", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành", "Trạng thái thời hạn", "Loại bỏ"];
+      const headers = ["STT", "Tên chi tiết", "Số file", "Vị trí", "Dãy máy gia công", "Tình trạng báo lỗi", "Ngày yêu cầu", "Thời hạn", "Ngày hoàn thành", "Trạng thái thời hạn", "Ghi chú", "Loại bỏ"];
       const data = filteredRows.map((r, i) => [
         i + 1,
         r.ten_chi_tiet,
@@ -283,6 +359,7 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
         r.thoi_han ? dayjs(r.thoi_han).format("DD/MM/YYYY") : "",
         r.ngay_hoan_thanh ? dayjs(r.ngay_hoan_thanh).format("DD/MM/YYYY") : "",
         r.trang_thai_thoi_han || "",
+        r.ghi_chu || "",
         r.loai_bo ? "Có" : "",
       ]);
       const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
@@ -550,6 +627,19 @@ export default function BaoCaoTinhTrang({ rows: processedRows }) {
           }}>
             {val}
           </span>
+        );
+      },
+    },
+    {
+      field: "ghi_chu", headerName: "Ghi chú", minWidth: 180, flex: 1, sortable: false,
+      renderCell: (p) => {
+        return (
+          <GhiChuInput
+            value={p.value}
+            rowKey={p.row.key}
+            onSave={updateStatus}
+            options={ghiChuOptions}
+          />
         );
       },
     },
