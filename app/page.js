@@ -194,6 +194,8 @@ function processData(thongKeLoi, soGiaoNhan) {
     const noiXuLySet = new Set();
     const noiPhatSinhSet = new Set();
     const dayMaySet = new Set();
+    const doisachList = [];
+    const doisachSeen = new Set();
     const ngayNhans = [];
     const seenOrder = new Set();
     // Đếm số phieu_bao_loi_id duy nhất cho so_lan_loi
@@ -218,6 +220,10 @@ function processData(thongKeLoi, soGiaoNhan) {
       if (e.noi_xu_ly_loi) noiXuLySet.add(e.noi_xu_ly_loi);
       if (e.noi_phat_sinh_loi) noiPhatSinhSet.add(e.noi_phat_sinh_loi);
       if (e.day_san_xuat_da_gia_cong_tong_hop_loi) dayMaySet.add(e.day_san_xuat_da_gia_cong_tong_hop_loi);
+      if (e.doisach_baoloi && !doisachSeen.has(e.doisach_baoloi.trim())) {
+        doisachSeen.add(e.doisach_baoloi.trim());
+        doisachList.push(e.doisach_baoloi.trim());
+      }
       // Tính lại phân loại trùng lặp
       if (e.phieu_bao_loi_id) pblIdSet.add(e.phieu_bao_loi_id);
       else noPblCount++;
@@ -248,6 +254,7 @@ function processData(thongKeLoi, soGiaoNhan) {
       noi_xu_lys: [...noiXuLySet],
       noi_phat_sinhs: [...noiPhatSinhSet],
       day_mays: [...dayMaySet],
+      doisachs: [...doisachList],
       ngay_nhans: ngayNhans,
       _allNgayNhanParsed: ngayNhans.map(n => parseDateMMDD(n.ngay_nhan)).filter(d => d && d.isValid()),
       entries,
@@ -599,7 +606,7 @@ export default function TongHopThongKeLoiPage() {
       const wb = XLSX.utils.book_new();
 
       // ── Sheet 1: Tổng hợp (grouped summary) ──
-      const summaryHeaders = ["STT", "Tên chi tiết", "Số file", "Số lần lỗi", "Tổng SL lỗi", "SL trả", "Lỗi tồn", "Các Order KD", "Các mã lỗi", "Nơi xử lý", "Dãy máy gia công", "Ngày nhận hàng", "Loại bỏ"];
+      const summaryHeaders = ["STT", "Tên chi tiết", "Số file", "Số lần lỗi", "Tổng SL lỗi", "SL trả", "Lỗi tồn", "Các Order KD", "Các mã lỗi", "Nơi xử lý", "Dãy máy gia công", "Ngày nhận hàng", "Đối sách", "Loại bỏ"];
       const summaryData = rows.map((r, i) => {
         const noiPS = (r.noi_phat_sinhs || [])[0] || "";
         const stKey = `${r.ten_chi_tiet}|||${noiPS}`;
@@ -616,6 +623,9 @@ export default function TongHopThongKeLoiPage() {
           r.noi_xu_lys.join(", "),
           (r.day_mays || []).join(", "),
           r.ngay_nhans.map(n => `${n.order_kd}: ${toVNDate(n.ngay_nhan)}`).join("; "),
+          (r.doisachs || []).length <= 1
+            ? (r.doisachs || [])[0] || ""
+            : (r.doisachs || []).map((d, i) => `Đối sách ${i + 1}: ${d}`).join("\n"),
           statusDataThongKe[stKey]?.loai_bo ? "Có" : "",
         ];
       });
@@ -627,7 +637,7 @@ export default function TongHopThongKeLoiPage() {
       XLSX.utils.book_append_sheet(wb, ws1, "Tổng hợp");
 
       // ── Sheet 2: Chi tiết (all individual entries) ──
-      const detailHeaders = ["STT", "Tên chi tiết", "Số file", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Dãy máy gia công", "Ngày nhận hàng", "Trạng thái", "Đã xác nhận xin xử lý"];
+      const detailHeaders = ["STT", "Tên chi tiết", "Số file", "Order KD", "Mã lỗi", "Nội dung lỗi", "SL lỗi", "SL trả", "Ngày báo lỗi", "Ngày trả lỗi", "Nơi xử lý", "Nơi phát sinh", "Dãy máy gia công", "Ngày nhận hàng", "Trạng thái", "Đã xác nhận xin xử lý", "Đối sách"];
       const detailData = [];
       let stt = 0;
       rows.forEach(r => {
@@ -650,6 +660,7 @@ export default function TongHopThongKeLoiPage() {
             toVNDate(e._ngay_nhan) || "",
             e.trang_thai || "",
             e.da_co_xac_nhan || "",
+            e.doisach_baoloi || "",
           ]);
         });
       });
